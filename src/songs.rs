@@ -246,16 +246,27 @@ pub async fn noubliez_pas_les_paroles(ctx: &Context, song: String, guild_id: Gui
 	for word in song_words {
 		info!("{word}");
 		sancry.edit(ctx.http.clone(), |m| m.nickname(word)).await?;
-		thread::sleep(Duration::from_secs(30));
+		thread::sleep(Duration::from_secs(10));
 	}
 	return Ok(());
 }
 
+pub async fn exec_stop_singing(bot: &Bot) -> String {
+	bot.il_a_oublié_les_paroles().await;
+	return "Ta gueule Sancry".into();
+}
+
 impl Bot {
-	pub fn il_a_oublié_les_paroles(&self) {
-		if let Some(thread) = &self.singing_thread {
+	pub async fn il_a_oublié_les_paroles(&self) {
+		let handle = self.singing_thread.read().await;
+		info!("Got handle");
+		if let Some(thread) = &(*handle) {
+			info!("Aborting");
 			thread.abort();
 			self.is_singing.swap(false, Ordering::Relaxed);
+		}
+		else {
+			info!("Not aborting");
 		}
 	}
 
