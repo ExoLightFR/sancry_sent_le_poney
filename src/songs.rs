@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::atomic::Ordering, thread, time::Duration, error::Error};
-use serenity::{builder::{CreateApplicationCommandOption, CreateApplicationCommand}, model::prelude::{command::CommandOptionType, GuildId}, prelude::Context};
+use serenity::{builder::{CreateApplicationCommand}, model::prelude::{command::CommandOptionType, GuildId}, prelude::Context};
 use tracing::info;
 
 use crate::Bot;

@@ -11,12 +11,12 @@ use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
-use songs::exec_stop_singing;
 use tokio::task::JoinHandle;
 use tokio::sync::RwLock;
 use tracing::{error, info};
 
 mod songs;
+mod bigbro;
 
 struct Bot
 {
@@ -80,7 +80,7 @@ impl Bot {
 		if !self.is_singing.load(Ordering::Relaxed) {
 			let mut handle = self.singing_thread.write().await;
 			*handle = Some(tokio::spawn(async move {
-				songs::noubliez_pas_les_paroles(&ctx2.clone(), result.unwrap(), guild_id, id).await;
+				let _ = songs::noubliez_pas_les_paroles(&ctx2.clone(), result.unwrap(), guild_id, id).await;
 			}));
 			self.is_singing.swap(true, Ordering::Relaxed);
 		}
@@ -90,10 +90,8 @@ impl Bot {
 
 #[async_trait]
 impl EventHandler for Bot {
-	async fn message(&self, _ctx: Context, msg: Message) {
-		if msg.content.to_lowercase() == "sancry" {
-			info!("foo");
-		}
+	async fn message(&self, ctx: Context, msg: Message) {
+		bigbro::big_brother_is_watching(&self, &ctx, &msg).await;
 	}
 
 	async fn ready(&self, ctx: Context, ready: Ready) {
@@ -115,7 +113,7 @@ impl EventHandler for Bot {
 				match command.data.name.as_str() {
 					"hello" => "Salut. Je suis un bot créé dans le seul et unique but de faire chier Sancry. À suivre.".to_string(),
 					"chante" => self.fetch_song(&ctx, &command.data.options[0].value).await,
-					"tg" => exec_stop_singing(&self).await,
+					"tg" => songs::exec_stop_singing(&self).await,
 					command => unreachable!("Unknown command: {}", command),
 				};
 			// send `response_content` to the discord server
@@ -132,10 +130,6 @@ impl EventHandler for Bot {
 		if let Err(e) = self.check_sancry_LoL(&ctx, &new_data).await {
 			error!("Error checking is Sancry's playing LoL: {e}");
 		}
-		// let games: String = new_data.activities.iter()
-		// 	.map(|x| format!("{} / ", x.name))
-		// 	.collect();
-		// info!("{:?} is playing {games}", new_data.user.name);
 	}
 }
 
