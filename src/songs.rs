@@ -1,8 +1,8 @@
 use std::{collections::HashMap, sync::atomic::Ordering, thread, time::Duration, error::Error};
-use serenity::{builder::{CreateApplicationCommand}, model::prelude::{command::CommandOptionType, GuildId}, prelude::Context};
-use tracing::info;
+use serenity::{builder::{CreateApplicationCommand}, model::{prelude::{command::CommandOptionType, GuildId, application_command::ApplicationCommandInteraction, InteractionResponseType}}, prelude::Context, json::Value};
+use tracing::{info, error};
 
-use crate::Bot;
+use crate::{Bot, ResponseKind};
 
 static CONNEMARA: &str = "Terre brûlée au vent
 Des landes de pierres
@@ -239,6 +239,36 @@ pub fn register_songs_command(cmd: &mut CreateApplicationCommand) -> &mut Create
 		})
 }
 
+pub async fn fetch_song(bot: &Bot, ctx: &Context, command_option: &Option<Value>) -> String {
+	let song_choice = match command_option {
+		Some(Value::String(choice)) => choice,
+		_ => "",
+	};
+
+	info!("song choice: [{song_choice}]");
+	let songs = get_songs();
+	let result = match songs.get(&song_choice) {
+		Some(song) => Ok(song.to_uppercase()),
+		None => Err("Impossible de trouver la chanson"),
+	};
+	if result.is_err() {
+		return result.unwrap_err().into();
+	}
+
+	let ctx2 = ctx.clone();
+	let id = bot.sancry_id;
+	let guild_id = bot.guild_id;
+
+	if !bot.is_singing.load(Ordering::Relaxed) {
+		let mut handle = bot.singing_thread.write().await;
+		*handle = Some(tokio::spawn(async move {
+			let _ = noubliez_pas_les_paroles(&ctx2.clone(), result.unwrap(), guild_id, id).await;
+		}));
+		bot.is_singing.swap(true, Ordering::Relaxed);
+	}
+	return format!("C'est parti pour la musique! <@{}> va chanter \"{song_choice}\"", bot.sancry_id);
+}
+
 pub async fn noubliez_pas_les_paroles(ctx: &Context, song: String, guild_id: GuildId, sancry_id: u64) -> Result <(), Box<dyn Error>> {
 	let sancry = GuildId::member(guild_id, ctx.http.clone(), sancry_id).await?;
 
@@ -251,23 +281,29 @@ pub async fn noubliez_pas_les_paroles(ctx: &Context, song: String, guild_id: Gui
 	return Ok(());
 }
 
-pub async fn exec_stop_singing(bot: &Bot) -> String {
+pub async fn exec_stop_singing(bot: &Bot, ctx: &Context, command: &ApplicationCommandInteraction) -> ResponseKind {
+	match command.defer(ctx.http.clone()).await {
+		Ok(_) => {},
+		Err(err) => error!("Error when deferring: {err}"),
+	};
 	bot.il_a_oublié_les_paroles().await;
-	return "Ta gueule Sancry".into();
+	return ResponseKind::Delayed("Ta gueule Sancry".into());
 }
 
 impl Bot {
 	pub async fn il_a_oublié_les_paroles(&self) {
-		let handle = self.singing_thread.read().await;
+		let mut handle = self.singing_thread.write().await;
 		info!("Got handle");
 		if let Some(thread) = &(*handle) {
 			info!("Aborting");
 			thread.abort();
+			info!("Aborted");
 			self.is_singing.swap(false, Ordering::Relaxed);
+			info!("Is singing is false");
+			*handle = None;
 		}
 		else {
 			info!("Not aborting");
 		}
 	}
-
 }

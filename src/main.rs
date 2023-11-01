@@ -1,10 +1,9 @@
 #![allow(non_snake_case)]
 
 use std::error::Error;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool};
 
 use anyhow::anyhow;
-use serenity::json::Value;
 use serenity::model::prelude::{Interaction, InteractionResponseType, Presence, ActivityType};
 use serenity::{async_trait, model::prelude::GuildId};
 use serenity::model::channel::Message;
@@ -56,36 +55,38 @@ impl Bot {
 		}
 		return Ok(());
 	}
+}
 
-	async fn fetch_song(&self, ctx: &Context, command_option: &Option<Value>) -> String {
-		let song_choice = match command_option {
-			Some(Value::String(choice)) => choice,
-			_ => "",
-		};
-
-		info!("song choice: [{song_choice}]");
-		let songs = songs::get_songs();
-		let result = match songs.get(&song_choice) {
-			Some(song) => Ok(song.to_uppercase()),
-			None => Err("Impossible de trouver la chanson"),
-		};
-		if result.is_err() {
-			return result.unwrap_err().into();
+/*
+Cannot respond to slash command:
+Http(
+	UnsuccessfulRequest(
+		ErrorResponse {
+			status_code: 404,
+			url: Url {
+				scheme: "https",
+				cannot_be_a_base: false,
+				username: "",
+				password: None,
+				host: Some(Domain("discord.com")),
+				port: None,
+				path: "/api/v10/interactions/1169399345003630693/aW50ZXJhY3Rpb246MTE2OTM5OTM0NTAwMzYzMDY5MzpxMTJuQTZDbEtZOUo2b0hLMGQ4ZjVVNlA5YUU0bExhUXhzaFJQdTUyN28zclkxalpjbklxZjk2eG1QZVF6R002MEVxbUtWUGhYb3c4UXFFajV6c2VoOG1PcnpjM0RIdkFNMXowbTRsaWxMcnNBTTNER09lY0packNFSk82VThsbg/callback",
+				query: None,
+				fragment: None
+			},
+			error: DiscordJsonError {
+				code: 10062,
+				message: "Unknown interaction",
+				errors: []
+			}
 		}
+	)
+)
+*/
 
-		let ctx2 = ctx.clone();
-		let id = self.sancry_id;
-		let guild_id = self.guild_id;
-
-		if !self.is_singing.load(Ordering::Relaxed) {
-			let mut handle = self.singing_thread.write().await;
-			*handle = Some(tokio::spawn(async move {
-				let _ = songs::noubliez_pas_les_paroles(&ctx2.clone(), result.unwrap(), guild_id, id).await;
-			}));
-			self.is_singing.swap(true, Ordering::Relaxed);
-		}
-		return format!("C'est parti pour la musique! <@{}> va chanter \"{song_choice}\"", self.sancry_id);
-	}
+enum ResponseKind {
+	Instant(String),
+	Delayed(String),
 }
 
 #[async_trait]
@@ -111,18 +112,33 @@ impl EventHandler for Bot {
  
 			let response_content =
 				match command.data.name.as_str() {
-					"hello" => "Salut. Je suis un bot créé dans le seul et unique but de faire chier Sancry. À suivre.".to_string(),
-					"chante" => self.fetch_song(&ctx, &command.data.options[0].value).await,
-					"tg" => songs::exec_stop_singing(&self).await,
+					"hello" => ResponseKind::Instant("Salut. Je suis un bot créé dans le seul et unique but de faire chier Sancry. À suivre.".into()),
+					"chante" => ResponseKind::Instant(songs::fetch_song(&self, &ctx, &command.data.options[0].value).await),
+					"tg" => songs::exec_stop_singing(&self, &ctx, &command).await,
 					command => unreachable!("Unknown command: {}", command),
 				};
 			// send `response_content` to the discord server
-			command.create_interaction_response(&ctx.http, |response| {
-				response
-					.kind(InteractionResponseType::ChannelMessageWithSource)
-					.interaction_response_data(|message| message.content(response_content))
-			})
-				.await.expect("Cannot respond to slash command");
+			match response_content {
+				ResponseKind::Instant(response_content) => {
+					command.create_interaction_response(&ctx.http, |response| {
+						response
+							.kind(InteractionResponseType::ChannelMessageWithSource)
+							.interaction_response_data(|message| message.content(response_content))
+					})
+						.await.expect("Cannot respond to slash command");
+				}
+				ResponseKind::Delayed(response_content) => {
+					// command.create_followup_message(&ctx.http, |response| {
+					// 	response
+					// 		.kind(InteractionResponseType::ChannelMessageWithSource)
+					// 		.interaction_response_data(|message| message.content(response_content))
+					// }).await.expect("fuck");
+					command.create_followup_message(&ctx.http, |response| {
+						response.content(response_content)
+					}).await.expect("yolo");
+				},
+			};
+			info!("Aaaaaand we're done");
 		}
 	}
 
