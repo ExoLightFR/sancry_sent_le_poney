@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration, error::Error};
-use serenity::{builder::CreateApplicationCommand, model::prelude::{command::CommandOptionType, GuildId}, prelude::Context};
+use serenity::{builder::CreateApplicationCommand, model::prelude::{command::CommandOptionType, GuildId, Member}, prelude::Context, json::Value};
 use tracing::info;
 
 use crate::Bot;
@@ -239,8 +239,40 @@ pub fn register_songs_command(cmd: &mut CreateApplicationCommand) -> &mut Create
 		})
 }
 
-pub async fn noubliez_pas_les_paroles(ctx: &Context, song: String, guild_id: GuildId, sancry_id: u64) -> Result <(), Box<dyn Error>> {
-	let sancry = GuildId::member(guild_id, ctx.http.clone(), sancry_id).await?;
+pub async fn exec_start_singing(bot: &Bot, ctx: &Context, command_option: &Option<Value>) -> String {
+	let song_choice = match command_option {
+		Some(Value::String(choice)) => choice,
+		_ => "",
+	};
+
+	info!("song choice: [{song_choice}]");
+	let songs = get_songs();
+	let result = match songs.get(&song_choice) {
+		Some(song) => Ok(song.to_uppercase()),
+		None => Err("Impossible de trouver la chanson"),
+	};
+	if result.is_err() {
+		return result.unwrap_err().into();
+	}
+
+	let sancry_id = bot.sancry_id;
+	if !bot.is_singing.load(Ordering::Relaxed) {
+		let ctx2 = ctx.clone();
+		let sancry = match GuildId::member(bot.guild_id, ctx.http.clone(), bot.sancry_id).await {
+			Ok(x) => x,
+			Err(_) => return "Putain, mais où est Sancry?".into(),
+		};
+		let mut handle = bot.singing_thread.write().await;
+		bot.is_singing.swap(true, Ordering::Relaxed);
+		*handle = Some(tokio::spawn(async move {
+			let _ = noubliez_pas_les_paroles(ctx2, result.unwrap(), sancry).await;
+		}));
+	}
+	return format!("C'est parti pour la musique! <@{}> va chanter \"{song_choice}\"", sancry_id);
+}
+
+pub async fn noubliez_pas_les_paroles(ctx: Context, song: String, sancry: Member) -> Result <(), Box<dyn Error>> {
+	// let sancry = GuildId::member(bot.guild_id, ctx.http.clone(), bot.sancry_id).await?;
 
 	let song_words: Vec<&str> = song.split_ascii_whitespace().collect();
 	for word in song_words {

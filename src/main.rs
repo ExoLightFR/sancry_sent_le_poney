@@ -1,15 +1,18 @@
 #![allow(non_snake_case)]
 
 use std::error::Error;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::anyhow;
+use serenity::client::Cache;
+use serenity::http::Http;
 use serenity::json::Value;
 use serenity::model::prelude::{Interaction, InteractionResponseType, Presence, ActivityType};
 use serenity::{async_trait, model::prelude::GuildId};
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
-use serenity::prelude::*;
+use serenity::{prelude::*, CacheAndHttp};
 use shuttle_secrets::SecretStore;
 use tokio::task::JoinHandle;
 use tokio::sync::RwLock;
@@ -24,20 +27,28 @@ pub struct Bot
 	sancry_id: u64,
 	is_singing: AtomicBool,
 	singing_thread: RwLock<Option<JoinHandle<()>>>,
+	cache: Cache,
+	http: Http,
 }
 
-impl Default for Bot {
-	fn default() -> Self {
+impl Bot {
+	pub fn new(guild_id: GuildId, sancry_id: u64, token: &str) -> Self {
 		Bot {
-			guild_id: GuildId(0),
-			sancry_id: 0,
+			guild_id,
+			sancry_id,
 			is_singing: AtomicBool::new(false),
 			singing_thread: RwLock::new(None),
+			cache: Cache::new(),
+			http: Http::new(token),
 		}
 	}
 }
 
 impl Bot {
+	// async fn get_sancry(&self) {
+	// 	GuildId::member(self.guild_id, , self.sancry_id).await
+	// }
+
 	async fn check_sancry_LoL(&self, ctx: &Context, data: &Presence) -> Result<(), Box<dyn Error>> {
 		if data.user.id != self.sancry_id {
 			return Ok(());
@@ -55,36 +66,6 @@ impl Bot {
 			}
 		}
 		return Ok(());
-	}
-
-	async fn fetch_song(&self, ctx: &Context, command_option: &Option<Value>) -> String {
-		let song_choice = match command_option {
-			Some(Value::String(choice)) => choice,
-			_ => "",
-		};
-
-		info!("song choice: [{song_choice}]");
-		let songs = songs::get_songs();
-		let result = match songs.get(&song_choice) {
-			Some(song) => Ok(song.to_uppercase()),
-			None => Err("Impossible de trouver la chanson"),
-		};
-		if result.is_err() {
-			return result.unwrap_err().into();
-		}
-
-		let ctx2 = ctx.clone();
-		let id = self.sancry_id;
-		let guild_id = self.guild_id;
-
-		if !self.is_singing.load(Ordering::Relaxed) {
-			let mut handle = self.singing_thread.write().await;
-			*handle = Some(tokio::spawn(async move {
-				let _ = songs::noubliez_pas_les_paroles(&ctx2.clone(), result.unwrap(), guild_id, id).await;
-			}));
-			self.is_singing.swap(true, Ordering::Relaxed);
-		}
-		return format!("C'est parti pour la musique! <@{}> va chanter \"{song_choice}\"", self.sancry_id);
 	}
 }
 
@@ -112,7 +93,7 @@ impl EventHandler for Bot {
 			let response_content =
 				match command.data.name.as_str() {
 					"hello" => "Salut. Je suis un bot créé dans le seul et unique but de faire chier Sancry. À suivre.".to_string(),
-					"chante" => self.fetch_song(&ctx, &command.data.options[0].value).await,
+					"chante" => songs::exec_start_singing(&self, &ctx, &command.data.options[0].value).await,
 					"tg" => songs::exec_stop_singing(&self).await,
 					command => unreachable!("Unknown command: {}", command),
 				};
@@ -163,7 +144,7 @@ async fn serenity(
 		| GatewayIntents::GUILD_PRESENCES | GatewayIntents::GUILD_MEMBERS;
 
 	let client = Client::builder(&token, intents)
-		.event_handler(Bot{guild_id, sancry_id, ..Default::default()})
+		.event_handler(Bot::new(guild_id, sancry_id, token.as_str()))
 		.await
 		.expect("Err creating client");
 
