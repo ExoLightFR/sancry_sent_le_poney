@@ -2,17 +2,16 @@
 
 use std::error::Error;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 
 use anyhow::anyhow;
 use serenity::client::Cache;
-use serenity::http::{Http, CacheHttp};
-use serenity::json::Value;
+use serenity::http::Http;
 use serenity::model::prelude::{Interaction, InteractionResponseType, Presence, ActivityType, Member};
 use serenity::{async_trait, model::prelude::GuildId};
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
-use serenity::{prelude::*, CacheAndHttp};
+use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
 use tokio::task::JoinHandle;
 use tokio::sync::RwLock;
