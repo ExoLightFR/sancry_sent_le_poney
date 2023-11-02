@@ -252,21 +252,25 @@ pub async fn noubliez_pas_les_paroles(ctx: &Context, song: String, guild_id: Gui
 }
 
 pub async fn exec_stop_singing(bot: &Bot) -> String {
-	bot.il_a_oublié_les_paroles().await;
-	return "Ta gueule Sancry".into();
+	match bot.il_a_oublié_les_paroles().await {
+		true => "Allez ça suffit, tg Sancry",
+		false => "Mais enfin, il ne chante pas !",
+	}.into()
 }
 
 impl Bot {
-	pub async fn il_a_oublié_les_paroles(&self) {
-		let handle = self.singing_thread.read().await;
-		info!("Got handle");
+	pub async fn il_a_oublié_les_paroles(&self) -> bool {
+		let mut handle = self.singing_thread.write().await;
 		if let Some(thread) = &(*handle) {
-			info!("Aborting");
+			info!("Ta gueule Sancry");
 			thread.abort();
 			self.is_singing.swap(false, Ordering::Relaxed);
+			*handle = None;
+			return true;
 		}
 		else {
-			info!("Not aborting");
+			info!("Sancry a déjà fermé sa gueule");
+			return false;
 		}
 	}
 
