@@ -93,7 +93,7 @@ impl EventHandler for Bot {
 				match command.data.name.as_str() {
 					"hello" => "Salut. Je suis un bot créé dans le seul et unique but de faire chier Sancry. À suivre.".to_string(),
 					"chante" => songs::exec_start_singing(&self, &ctx, &command.data.options[0].value).await,
-					"tg" => songs::exec_stop_singing(&self).await,
+					"tg" => songs::exec_stop_singing(&self, &command).await,
 					command => unreachable!("Unknown command: {}", command),
 				};
 			// send `response_content` to the discord server

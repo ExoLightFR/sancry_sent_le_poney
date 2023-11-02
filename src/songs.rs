@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration, error::Error};
-use serenity::{builder::CreateApplicationCommand, model::prelude::{command::CommandOptionType, Member}, prelude::Context, json::Value};
-use tracing::info;
+use serenity::{builder::CreateApplicationCommand, model::prelude::{command::CommandOptionType, Member, application_command::ApplicationCommandInteraction}, prelude::Context, json::Value};
+use tracing::{info, error};
 
 use crate::Bot;
 
@@ -283,7 +283,13 @@ pub async fn noubliez_pas_les_paroles(ctx: Context, song: String, sancry: Member
 	return Ok(());
 }
 
-pub async fn exec_stop_singing(bot: &Bot) -> String {
+pub async fn exec_stop_singing(bot: &Bot, command: &ApplicationCommandInteraction) -> String {
+	if command.user.id == bot.sancry_id {
+		return "mdr t'as cru".into();
+	}
+	if let Err(e) = bot.get_sancry().await.unwrap().edit(bot.http.clone(), |x| x.nickname("")).await {
+		error!("Failed to change Sancry's name: {e}");
+	}
 	match bot.il_a_oublié_les_paroles().await {
 		true => "Allez ça suffit, tg Sancry",
 		false => "Mais enfin, il ne chante pas !",
