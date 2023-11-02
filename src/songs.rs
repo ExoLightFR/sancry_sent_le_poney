@@ -1,5 +1,5 @@
-use std::{collections::HashMap, sync::atomic::Ordering, thread, time::Duration, error::Error};
-use serenity::{builder::{CreateApplicationCommand}, model::prelude::{command::CommandOptionType, GuildId}, prelude::Context};
+use std::{collections::HashMap, sync::atomic::Ordering, time::Duration, error::Error};
+use serenity::{builder::CreateApplicationCommand, model::prelude::{command::CommandOptionType, GuildId}, prelude::Context};
 use tracing::info;
 
 use crate::Bot;
@@ -246,7 +246,7 @@ pub async fn noubliez_pas_les_paroles(ctx: &Context, song: String, guild_id: Gui
 	for word in song_words {
 		info!("{word}");
 		sancry.edit(ctx.http.clone(), |m| m.nickname(word)).await?;
-		thread::sleep(Duration::from_secs(10));
+		tokio::time::sleep(Duration::from_secs(10)).await;
 	}
 	return Ok(());
 }

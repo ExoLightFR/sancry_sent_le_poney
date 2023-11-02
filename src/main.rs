@@ -18,7 +18,7 @@ use tracing::{error, info};
 mod songs;
 mod bigbro;
 
-struct Bot
+pub struct Bot
 {
 	guild_id: GuildId,
 	sancry_id: u64,
