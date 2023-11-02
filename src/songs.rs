@@ -258,7 +258,7 @@ pub async fn exec_start_singing(bot: &Bot, ctx: &Context, command_option: &Optio
 	let sancry_id = bot.sancry_id;
 	if !bot.is_singing.load(Ordering::Relaxed) {
 		let ctx2 = ctx.clone();
-		let sancry = match GuildId::member(bot.guild_id, ctx.http.clone(), bot.sancry_id).await {
+		let sancry = match bot.get_sancry().await {
 			Ok(x) => x,
 			Err(_) => return "Putain, mais où est Sancry?".into(),
 		};

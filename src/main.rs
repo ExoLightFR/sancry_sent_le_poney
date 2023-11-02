@@ -6,9 +6,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::anyhow;
 use serenity::client::Cache;
-use serenity::http::Http;
+use serenity::http::{Http, CacheHttp};
 use serenity::json::Value;
-use serenity::model::prelude::{Interaction, InteractionResponseType, Presence, ActivityType};
+use serenity::model::prelude::{Interaction, InteractionResponseType, Presence, ActivityType, Member};
 use serenity::{async_trait, model::prelude::GuildId};
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
@@ -27,8 +27,8 @@ pub struct Bot
 	sancry_id: u64,
 	is_singing: AtomicBool,
 	singing_thread: RwLock<Option<JoinHandle<()>>>,
-	cache: Cache,
-	http: Http,
+	cache: Arc<Cache>,
+	http: Arc<Http>,
 }
 
 impl Bot {
@@ -38,16 +38,16 @@ impl Bot {
 			sancry_id,
 			is_singing: AtomicBool::new(false),
 			singing_thread: RwLock::new(None),
-			cache: Cache::new(),
-			http: Http::new(token),
+			cache: Arc::<Cache>::new(Cache::new()),
+			http: Http::new(token).into(),	// Alternative syntax
 		}
 	}
 }
 
 impl Bot {
-	// async fn get_sancry(&self) {
-	// 	GuildId::member(self.guild_id, , self.sancry_id).await
-	// }
+	async fn get_sancry(&self) -> Result<Member, SerenityError>{
+		GuildId::member(self.guild_id, self.http.clone(), self.sancry_id).await
+	}
 
 	async fn check_sancry_LoL(&self, ctx: &Context, data: &Presence) -> Result<(), Box<dyn Error>> {
 		if data.user.id != self.sancry_id {
