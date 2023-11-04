@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::{atomic::Ordering, Arc}, time::Duration, error::Error};
-use serenity::{builder::CreateApplicationCommand, model::prelude::{command::CommandOptionType, Member, application_command::ApplicationCommandInteraction}, prelude::Context, json::Value};
+use serenity::{builder::CreateApplicationCommand, model::prelude::{command::CommandOptionType, Member, application_command::{ApplicationCommandInteraction, CommandDataOption}}, prelude::Context, json::Value};
 use tracing::{info, error};
 
 use crate::BotData;
@@ -241,36 +241,41 @@ pub fn register_songs_command(cmd: &mut CreateApplicationCommand) -> &mut Create
 		})
 }
 
-pub async fn exec_start_singing(bot: &Arc<BotData>, ctx: &Context, command_option: &Option<Value>) -> String {
-	let song_choice = match command_option {
-		Some(Value::String(choice)) => choice,
-		_ => "",
+pub async fn exec_start_singing(
+	bot: &Arc<BotData>,
+	ctx: &Context,
+	command: &ApplicationCommandInteraction
+) -> Result<String, String>
+{
+	let song_choice = match command.data.options.get(0) {
+		Some(arg) => match &arg.value {
+			Some(Value::String(choice)) => choice,
+			_ => return Err("Error: missing or invalid argument".to_string()),
+		},
+		None => return Err("Error: invalid argument".to_string()),
 	};
 
-	info!("song choice: [{song_choice}]");
+	info!("{} chose {song_choice}", command.user.name);
 	let songs = get_songs();
-	let result = match songs.get(&song_choice) {
-		Some(song) => Ok(song.to_uppercase()),
-		None => Err("Impossible de trouver la chanson"),
+	let result = match songs.get(&song_choice.as_str()) {
+		Some(song) => song.to_uppercase(),
+		None => return Err("Impossible de trouver la chanson".into()),
 	};
-	if result.is_err() {
-		return result.unwrap_err().into();
-	}
 
 	let sancry_id = bot.sancry_id;
 	if !bot.is_singing.load(Ordering::Relaxed) {
 		let ctx2 = ctx.clone();
 		let sancry = match bot.get_sancry().await {
 			Ok(x) => x,
-			Err(_) => return "Putain, mais où est Sancry?".into(),
+			Err(e) => return Err(e.to_string()),
 		};
 		let mut handle = bot.singing_thread.write().await;
 		bot.is_singing.swap(true, Ordering::Relaxed);
 		*handle = Some(tokio::spawn(async move {
-			let _ = noubliez_pas_les_paroles(ctx2, result.unwrap(), sancry).await;
+			let _ = noubliez_pas_les_paroles(ctx2, result, sancry).await;
 		}));
 	}
-	return format!("C'est parti pour la musique! <@{}> va chanter \"{song_choice}\"", sancry_id);
+	Ok(format!("C'est parti pour la musique! <@{}> va chanter \"{song_choice}\"", sancry_id))
 }
 
 pub async fn noubliez_pas_les_paroles(ctx: Context, song: String, sancry: Member) -> Result <(), Box<dyn Error>> {
@@ -285,17 +290,18 @@ pub async fn noubliez_pas_les_paroles(ctx: Context, song: String, sancry: Member
 	return Ok(());
 }
 
-pub async fn exec_stop_singing(bot: &Arc<BotData>, command: &ApplicationCommandInteraction) -> String {
+pub async fn exec_stop_singing(bot: &Arc<BotData>, command: &ApplicationCommandInteraction) -> Result<String, String> {
 	if command.user.id == bot.sancry_id {
-		return "mdr t'as cru".into();
+		return Ok("mdr t'as cru".into());
 	}
 	if let Err(e) = bot.get_sancry().await.unwrap().edit(bot.http.clone(), |x| x.nickname("")).await {
 		error!("Failed to change Sancry's name: {e}");
 	}
-	match il_a_oublié_les_paroles(bot).await {
+	let response: String = match il_a_oublié_les_paroles(bot).await {
 		true => "Allez ça suffit, tg Sancry",
 		false => "Mais enfin, il ne chante pas !",
-	}.into()
+	}.into();
+	return Ok(response);
 }
 
 pub async fn il_a_oublié_les_paroles(bot_data: &Arc<BotData>) -> bool {

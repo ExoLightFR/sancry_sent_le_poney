@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+use std::collections::VecDeque;
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -40,6 +41,7 @@ pub struct BotData
 	singing_thread: RwLock<Option<JoinHandle<()>>>,
 	cache: Arc<Cache>,
 	http: Arc<Http>,
+	songs_queue: RwLock<VecDeque<&'static str>>,
 }
 
 impl TypeMapKey for BotData {
@@ -68,6 +70,7 @@ impl BotData {
 			singing_thread: RwLock::new(None),
 			cache: Arc::<Cache>::new(Cache::new()),
 			http: Http::new(token).into(),	// Alternative syntax
+			songs_queue: VecDeque::from([]).into(),
 		}
 	}
 
@@ -137,13 +140,16 @@ impl EventHandler for Handler {
 				data_read.get::<BotData>().expect("fuck").clone()
 			};
  
-			let response_content =
-				match command.data.name.as_str() {
-					"hello" => "Salut. Je suis un bot créé dans le seul et unique but de faire chier Sancry. À suivre.".to_string(),
-					"chante" => songs::exec_start_singing(&bot_data, &ctx, &command.data.options[0].value).await,
-					"tg" => songs::exec_stop_singing(&bot_data, &command).await,
-					command => unreachable!("Unknown command: {}", command),
-				};
+			let response_content = match command.data.name.as_str() {
+				"hello" => Ok("Salut. Je suis un bot créé dans le seul et unique but de faire chier Sancry. À suivre.".to_string()),
+				"chante" => songs::exec_start_singing(&bot_data, &ctx, &command).await,
+				"tg" => songs::exec_stop_singing(&bot_data, &command).await,
+				command => unreachable!("Unknown command: {}", command),
+			};
+			let response_content = match response_content {
+				Ok(x) => x,
+				Err(e) => { error!("{e}"); e },
+			};
 			// send `response_content` to the discord server
 			command.create_interaction_response(&ctx.http, |response| {
 				response
