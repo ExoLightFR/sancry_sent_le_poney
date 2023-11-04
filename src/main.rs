@@ -21,16 +21,6 @@ use tracing::{error, info};
 mod songs;
 mod bigbro;
 
-// pub struct Bot
-// {
-// 	guild_id: GuildId,
-// 	sancry_id: u64,
-// 	is_singing: AtomicBool,
-// 	singing_thread: RwLock<Option<JoinHandle<()>>>,
-// 	cache: Arc<Cache>,
-// 	http: Arc<Http>,
-// }
-
 struct Handler;
 
 pub struct BotData
@@ -48,18 +38,10 @@ impl TypeMapKey for BotData {
 	type Value = Arc<BotData>;
 }
 
-// impl Bot {
-// 	pub fn new(guild_id: GuildId, sancry_id: u64, token: &str) -> Self {
-// 		Bot {
-// 			guild_id,
-// 			sancry_id,
-// 			is_singing: AtomicBool::new(false),
-// 			singing_thread: RwLock::new(None),
-// 			cache: Arc::<Cache>::new(Cache::new()),
-// 			http: Http::new(token).into(),	// Alternative syntax
-// 		}
-// 	}
-// }
+pub async fn get_bot_data(ctx: &Context) -> Arc<BotData> {
+	let data_read = ctx.data.read().await;
+	return data_read.get::<BotData>().expect("fuck").clone();
+}
 
 impl BotData {
 	pub fn new(guild_id: GuildId, sancry_id: u64, token: &str) -> Self {
@@ -79,49 +61,17 @@ impl BotData {
 	}
 }
 
-// impl Bot {
-// 	async fn get_sancry(&self) -> Result<Member, SerenityError>{
-// 		GuildId::member(self.guild_id, self.http.clone(), self.sancry_id).await
-// 	}
-
-// 	async fn check_sancry_LoL(&self, ctx: &Context, data: &Presence) -> Result<(), Box<dyn Error>> {
-// 		if data.user.id != self.sancry_id {
-// 			return Ok(());
-// 		}
-// 		let mut activities = data.activities.iter()
-// 			.filter(|x| x.kind == ActivityType::Playing || x.kind == ActivityType::Competing);
-// 		if activities.any(|x| x.name == "League of Legends") {
-// 			info!("ATTENTION!!! SANCRY JOUE A LOL");
-// 			let sancry = GuildId::member(self.guild_id, ctx.http.clone(), self.sancry_id)
-// 				.await?;
-// 			for _ in 1..10 {
-// 				sancry.user.direct_message(ctx.http.clone(), |m| {
-// 					m.content("WTF SANCRY ARRÊTE DE JOUER À CE JEU DE CON TOUT DE SUITE")
-// 				}).await?;
-// 			}
-// 		}
-// 		return Ok(());
-// 	}
-// }
-
 #[async_trait]
 impl EventHandler for Handler {
 	async fn message(&self, ctx: Context, msg: Message) {
-		let bot_data = {
-			let data_read = ctx.data.read().await;
-			data_read.get::<BotData>().expect("fuck").clone()
-		};
+		let bot_data = get_bot_data(&ctx).await;
 		bigbro::big_brother_is_watching(&bot_data, &ctx, &msg).await;
 	}
 
 	async fn ready(&self, ctx: Context, ready: Ready) {
 		info!("{} is connected!", ready.user.name);
 
-		let bot_data = {
-			let data_read = ctx.data.read().await;
-			data_read.get::<BotData>().expect("fuck").clone()
-		};
-		info!("SUCCESS: {}", bot_data.sancry_id);
+		let bot_data = get_bot_data(&ctx).await;
 
 		GuildId::set_application_commands(&bot_data.guild_id, &ctx.http, |commands| {
 			commands

@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{atomic::Ordering, Arc}, time::Duration, e
 use serenity::{builder::CreateApplicationCommand, model::prelude::{command::CommandOptionType, Member, application_command::{ApplicationCommandInteraction, CommandDataOption}}, prelude::Context, json::Value};
 use tracing::{info, error};
 
-use crate::BotData;
+use crate::{BotData, get_bot_data};
 
 // use crate::Bot;
 
@@ -218,6 +218,9 @@ Can't you feel my heart beat fast
 I want this to last
 Need you by my side";
 
+static TEST_1: &'static str = "quel gros con";
+static TEST_2: &'static str = "coucou les amis";
+
 pub fn get_songs() -> HashMap<&'static str, &'static str> {
 	let songs = HashMap::from([
 		("Les Lacs du Connemara",	CONNEMARA),
@@ -225,6 +228,8 @@ pub fn get_songs() -> HashMap<&'static str, &'static str> {
 		("Les démons de minuit",	LES_DEMONS_DE_MINUIT),
 		("Alexandrie Alexandra",	ALEXANDRIE_ALEXANDRA),
 		("Every time we touch",		EVERY_TIME_WE_TOUCH),
+		("Test 1",					TEST_1),
+		("Test 2",					TEST_2),
 	]);
 	return songs;
 }
@@ -257,10 +262,21 @@ pub async fn exec_start_singing(
 
 	info!("{} chose {song_choice}", command.user.name);
 	let songs = get_songs();
-	let result = match songs.get(&song_choice.as_str()) {
-		Some(song) => song.to_uppercase(),
+	let song = match songs.get(song_choice.as_str()) {
+		Some(&song) => song,
 		None => return Err("Impossible de trouver la chanson".into()),
 	};
+
+	{
+		let bot = get_bot_data(ctx).await;
+		let mut queue = bot.songs_queue.write().await;
+		if queue.len() < 5 {
+			queue.push_back(song);
+		}
+		else {
+			return Err("Trop de chansons en attente!".into())
+		}
+	}
 
 	let sancry_id = bot.sancry_id;
 	if !bot.is_singing.load(Ordering::Relaxed) {
@@ -269,23 +285,35 @@ pub async fn exec_start_singing(
 			Ok(x) => x,
 			Err(e) => return Err(e.to_string()),
 		};
+		
 		let mut handle = bot.singing_thread.write().await;
 		bot.is_singing.swap(true, Ordering::Relaxed);
 		*handle = Some(tokio::spawn(async move {
-			let _ = noubliez_pas_les_paroles(ctx2, result, sancry).await;
+			let _ = noubliez_pas_les_paroles(ctx2.clone(), sancry).await;
+			let bot_data = get_bot_data(&ctx2).await;
+			bot_data.is_singing.swap(false, Ordering::Relaxed);
 		}));
 	}
 	Ok(format!("C'est parti pour la musique! <@{}> va chanter \"{song_choice}\"", sancry_id))
 }
 
-pub async fn noubliez_pas_les_paroles(ctx: Context, song: String, sancry: Member) -> Result <(), Box<dyn Error>> {
-	// let sancry = GuildId::member(bot.guild_id, ctx.http.clone(), bot.sancry_id).await?;
-
-	let song_words: Vec<&str> = song.split_ascii_whitespace().collect();
-	for word in song_words {
-		info!("{word}");
-		sancry.edit(ctx.http.clone(), |m| m.nickname(word)).await?;
-		tokio::time::sleep(Duration::from_secs(10)).await;
+pub async fn noubliez_pas_les_paroles(ctx: Context, sancry: Member) -> Result <(), Box<dyn Error>> {
+	loop {
+		let song: String;
+		{
+			let bot = get_bot_data(&ctx).await;
+			let mut queue = bot.songs_queue.write().await;
+			if queue.is_empty() {
+				break;
+			}
+			song = queue.pop_front().unwrap().to_uppercase();
+		}
+		let song_words: Vec<&str> = song.split_ascii_whitespace().collect();
+		for word in song_words {
+			info!("{word}");
+			sancry.edit(ctx.http.clone(), |m| m.nickname(word)).await?;
+			tokio::time::sleep(Duration::from_secs(10)).await;
+		}
 	}
 	return Ok(());
 }
@@ -304,13 +332,14 @@ pub async fn exec_stop_singing(bot: &Arc<BotData>, command: &ApplicationCommandI
 	return Ok(response);
 }
 
-pub async fn il_a_oublié_les_paroles(bot_data: &Arc<BotData>) -> bool {
-	let mut handle = bot_data.singing_thread.write().await;
-	if let Some(thread) = &(*handle) {
+pub async fn il_a_oublié_les_paroles(bot_data: &Arc<BotData>) -> bool
+{
+	if bot_data.is_singing.load(Ordering::Relaxed) {
 		info!("Ta gueule Sancry");
+		let thread = bot_data.singing_thread.read().await;
+		let thread = thread.as_ref().unwrap();
 		thread.abort();
 		bot_data.is_singing.swap(false, Ordering::Relaxed);
-		*handle = None;
 		return true;
 	}
 	else {

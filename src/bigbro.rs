@@ -53,8 +53,10 @@ pub async fn check_sancry_jeu_de_con(
 	if presence.user.id != bot_data.sancry_id {
 		return Ok(());
 	}
-	let mut activities = presence.activities.iter()
+	let mut activities = presence.activities
+		.iter()
 		.filter(|x| x.kind == ActivityType::Playing || x.kind == ActivityType::Competing);
+
 	if activities.any(|x| x.name == "League of Legends") {
 		info!("ATTENTION!!! SANCRY JOUE A LOL");
 		let sancry = GuildId::member(bot_data.guild_id, ctx.http.clone(), bot_data.sancry_id)
