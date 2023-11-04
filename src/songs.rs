@@ -1,8 +1,10 @@
-use std::{collections::HashMap, sync::atomic::Ordering, time::Duration, error::Error};
+use std::{collections::HashMap, sync::{atomic::Ordering, Arc}, time::Duration, error::Error};
 use serenity::{builder::CreateApplicationCommand, model::prelude::{command::CommandOptionType, Member, application_command::ApplicationCommandInteraction}, prelude::Context, json::Value};
 use tracing::{info, error};
 
-use crate::Bot;
+use crate::BotData;
+
+// use crate::Bot;
 
 static CONNEMARA: &str = "Terre brûlée au vent
 Des landes de pierres
@@ -239,7 +241,7 @@ pub fn register_songs_command(cmd: &mut CreateApplicationCommand) -> &mut Create
 		})
 }
 
-pub async fn exec_start_singing(bot: &Bot, ctx: &Context, command_option: &Option<Value>) -> String {
+pub async fn exec_start_singing(bot: &Arc<BotData>, ctx: &Context, command_option: &Option<Value>) -> String {
 	let song_choice = match command_option {
 		Some(Value::String(choice)) => choice,
 		_ => "",
@@ -283,33 +285,30 @@ pub async fn noubliez_pas_les_paroles(ctx: Context, song: String, sancry: Member
 	return Ok(());
 }
 
-pub async fn exec_stop_singing(bot: &Bot, command: &ApplicationCommandInteraction) -> String {
+pub async fn exec_stop_singing(bot: &Arc<BotData>, command: &ApplicationCommandInteraction) -> String {
 	if command.user.id == bot.sancry_id {
 		return "mdr t'as cru".into();
 	}
 	if let Err(e) = bot.get_sancry().await.unwrap().edit(bot.http.clone(), |x| x.nickname("")).await {
 		error!("Failed to change Sancry's name: {e}");
 	}
-	match bot.il_a_oublié_les_paroles().await {
+	match il_a_oublié_les_paroles(bot).await {
 		true => "Allez ça suffit, tg Sancry",
 		false => "Mais enfin, il ne chante pas !",
 	}.into()
 }
 
-impl Bot {
-	pub async fn il_a_oublié_les_paroles(&self) -> bool {
-		let mut handle = self.singing_thread.write().await;
-		if let Some(thread) = &(*handle) {
-			info!("Ta gueule Sancry");
-			thread.abort();
-			self.is_singing.swap(false, Ordering::Relaxed);
-			*handle = None;
-			return true;
-		}
-		else {
-			info!("Sancry a déjà fermé sa gueule");
-			return false;
-		}
+pub async fn il_a_oublié_les_paroles(bot_data: &Arc<BotData>) -> bool {
+	let mut handle = bot_data.singing_thread.write().await;
+	if let Some(thread) = &(*handle) {
+		info!("Ta gueule Sancry");
+		thread.abort();
+		bot_data.is_singing.swap(false, Ordering::Relaxed);
+		*handle = None;
+		return true;
 	}
-
+	else {
+		info!("Sancry a déjà fermé sa gueule");
+		return false;
+	}
 }
