@@ -234,7 +234,7 @@ pub fn get_songs() -> HashMap<&'static str, &'static str> {
 	return songs;
 }
 
-pub fn register_songs_command(cmd: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
+pub fn register_cmd(cmd: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
 	cmd.name("chante").description("Fait chanter Sancry.")
 		.create_option(|opt| {
 			opt.name("chanson")
