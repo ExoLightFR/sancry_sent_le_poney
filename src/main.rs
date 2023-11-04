@@ -21,6 +21,7 @@ use tracing::{error, info};
 mod songs;
 mod bigbro;
 mod rename;
+mod abuse;
 
 struct Handler;
 
