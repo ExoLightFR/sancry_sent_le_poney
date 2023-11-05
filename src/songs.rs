@@ -294,7 +294,7 @@ pub async fn exec_start_singing(
 			bot_data.is_singing.swap(false, Ordering::Relaxed);
 		}));
 	}
-	Ok(format!("C'est parti pour la musique! <@{}> va chanter \"{song_choice}\"", sancry_id))
+	Ok(format!("C'est parti pour la musique! Sancry va chanter \"{song_choice}\"", sancry_id))
 }
 
 pub async fn noubliez_pas_les_paroles(ctx: Context, sancry: Member) -> Result <(), Box<dyn Error>> {
@@ -315,6 +315,7 @@ pub async fn noubliez_pas_les_paroles(ctx: Context, sancry: Member) -> Result <(
 			tokio::time::sleep(Duration::from_secs(10)).await;
 		}
 	}
+	sancry.edit(ctx.http.clone(), |m| m.nickname("")).await?;
 	return Ok(());
 }
 
@@ -322,13 +323,15 @@ pub async fn exec_stop_singing(bot: &Arc<BotData>, command: &ApplicationCommandI
 	if command.user.id == bot.sancry_id {
 		return Ok("mdr t'as cru".into());
 	}
-	if let Err(e) = bot.get_sancry().await.unwrap().edit(bot.http.clone(), |x| x.nickname("")).await {
-		error!("Failed to change Sancry's name: {e}");
-	}
+	
 	let response: String = match il_a_oublié_les_paroles(bot).await {
 		true => "Allez ça suffit, tg Sancry",
 		false => "Mais enfin, il ne chante pas !",
 	}.into();
+
+	let sancry = bot.get_sancry().await.map_err(|e| e.to_string())?;
+	sancry.edit(bot.http.clone(), |x| x.nickname("")).await.map_err(|e| e.to_string())?;
+
 	return Ok(response);
 }
 
