@@ -17,10 +17,12 @@ use tokio::task::JoinHandle;
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 
+use shuttle_persist::PersistInstance;
+
 mod songs;
 mod bigbro;
 mod rename;
-// mod abuse;
+mod abuse;
 
 struct Handler;
 
@@ -33,12 +35,14 @@ pub struct BotData
 	cache: Arc<Cache>,
 	http: Arc<Http>,
 	songs_queue: RwLock<VecDeque<&'static str>>,
+	aboos: RwLock<abuse::MuteData>,
 }
 
 impl TypeMapKey for BotData {
 	type Value = Arc<BotData>;
 }
 
+// Get a read lock from ctx.data, and return the arc to the BotData struct in the TypeMap
 pub async fn get_bot_data(ctx: &Context) -> Arc<BotData> {
 	let data_read = ctx.data.read().await;
 	return data_read.get::<BotData>().expect("fuck").clone();
@@ -54,6 +58,7 @@ impl BotData {
 			cache: Arc::<Cache>::new(Cache::new()),
 			http: Http::new(token).into(),	// Alternative syntax
 			songs_queue: VecDeque::from([]).into(),
+			aboos: abuse::MuteData::default().into(),
 		}
 	}
 
@@ -133,6 +138,7 @@ impl EventHandler for Handler {
 #[shuttle_runtime::main]
 async fn serenity(
 	#[shuttle_secrets::Secrets] secret_store: SecretStore,
+	#[shuttle_persist::Persist] persist: PersistInstance,
 ) -> shuttle_serenity::ShuttleSerenity {
 	// Get the discord token set in `Secrets.toml`
 	let token = secret_store.get("DISCORD_TOKEN").expect("'DISCORD_TOKEN' was not found");

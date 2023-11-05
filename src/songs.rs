@@ -294,7 +294,7 @@ pub async fn exec_start_singing(
 			bot_data.is_singing.swap(false, Ordering::Relaxed);
 		}));
 	}
-	Ok(format!("C'est parti pour la musique! Sancry va chanter \"{song_choice}\"", sancry_id))
+	Ok(format!("C'est parti pour la musique! Sancry va chanter \"{song_choice}\""))
 }
 
 pub async fn noubliez_pas_les_paroles(ctx: Context, sancry: Member) -> Result <(), Box<dyn Error>> {

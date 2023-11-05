@@ -7,7 +7,9 @@ name = "SancrySentLePoney"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "serde",
  "serenity",
+ "shuttle-persist",
  "shuttle-runtime",
  "shuttle-secrets",
  "shuttle-serenity",
@@ -192,6 +194,15 @@ name = "base64"
 version = "0.21.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35636a1494ede3b646cc98f74f8e62c773a38a659ebc777a2cf26b9b74171df9"
+
+[[package]]
+name = "bincode"
+version = "1.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bitflags"
@@ -1600,6 +1611,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "secrecy"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9bd1c54ea06cfd2f6b63219704de0b9b4f72dcc2b8fdef820be6cd799780e91e"
+dependencies = [
+ "serde",
+ "zeroize",
+]
+
+[[package]]
 name = "semver"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1724,9 +1745,9 @@ dependencies = [
 
 [[package]]
 name = "shuttle-codegen"
-version = "0.30.1"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2ef49e29f7c8ce4f5951e2b35763c990aee3a7c0604baaad84886a8ea4edab3"
+checksum = "26923bd6e15984d3fce9f52fbac7d52d011885ffe79c0f566048f274068a1937"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -1736,9 +1757,9 @@ dependencies = [
 
 [[package]]
 name = "shuttle-common"
-version = "0.30.1"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e47b17dc8e970053a38dbc24a2c507682a6cd1a6ec04d80799ceaf49ffd95b46"
+checksum = "03089b45ff42d977b5c3df0ee8cf6cb147f8df65bc4c8068405a129e06380e46"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1775,13 +1796,27 @@ dependencies = [
  "tracing-subscriber",
  "ttl_cache",
  "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "shuttle-persist"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ac20a6baa3a9173fe1bed60fb1ff4bded7242ae0d18d4cd12d0c068e0c3a071"
+dependencies = [
+ "async-trait",
+ "bincode",
+ "serde",
+ "shuttle-service",
+ "thiserror",
 ]
 
 [[package]]
 name = "shuttle-proto"
-version = "0.30.1"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fb772aa69a660f822981cc0dced49d7549a921c2a1f16fb05d8c32f1938b23e"
+checksum = "941c18c10cff167fff106cea13e46ab37f97a075a110468c791ae77b5bd6bc45"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1799,9 +1834,9 @@ dependencies = [
 
 [[package]]
 name = "shuttle-runtime"
-version = "0.30.1"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11d552e7fe1b3ba2437c7383b4efd106cd48445e9b1852ba575e29b028c6d927"
+checksum = "440141c29409f3ced3adcd709b68f55937ee34594691f809909dc411fee66307"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1825,20 +1860,21 @@ dependencies = [
 
 [[package]]
 name = "shuttle-secrets"
-version = "0.30.1"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecb739d255a89e3af5a2d17a60f4934f221f760e63562a17f7dcbb76367c62f9"
+checksum = "e9be054f432ea64d27e06fc261b24d7aac551669212e6c9835a2db225d4dec53"
 dependencies = [
  "async-trait",
+ "secrecy",
  "serde",
  "shuttle-service",
 ]
 
 [[package]]
 name = "shuttle-serenity"
-version = "0.30.1"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c719805d02c45ef62d431259773a5750ad3e9642428e8fd117ea554d31430b5c"
+checksum = "7462794b53c83877bedad461ba14e81a1962973cdb5f6f7a774ca9d02c11e21d"
 dependencies = [
  "serenity",
  "shuttle-runtime",
@@ -1846,9 +1882,9 @@ dependencies = [
 
 [[package]]
 name = "shuttle-service"
-version = "0.30.1"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63f9f1fe4eae29feefce7c3775a10e0a7d0f62dc799741cc667b8e19306aedb5"
+checksum = "e3d4aab886670e782d491d5df8e62417b03509cbcbf2545d483b3dc453662209"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2736,3 +2772,9 @@ dependencies = [
  "cfg-if",
  "windows-sys",
 ]
+
+[[package]]
+name = "zeroize"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a0956f1ba7c7909bfb66c2e9e4124ab6f6482560f6628b5aaeba39207c9aad9"
