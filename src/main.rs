@@ -1,14 +1,13 @@
 #![allow(non_snake_case)]
 
 use std::collections::VecDeque;
-use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-use anyhow::anyhow;
 use serenity::client::Cache;
 use serenity::http::Http;
-use serenity::model::prelude::{Interaction, InteractionResponseType, Presence, ActivityType, Member};
+use serenity::http::ratelimiting::RatelimitInfo;
+use serenity::model::prelude::{Interaction, InteractionResponseType, Presence, Member};
 use serenity::{async_trait, model::prelude::GuildId};
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
@@ -16,12 +15,12 @@ use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
 use tokio::task::JoinHandle;
 use tokio::sync::RwLock;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 mod songs;
 mod bigbro;
 mod rename;
-mod abuse;
+// mod abuse;
 
 struct Handler;
 
@@ -65,23 +64,27 @@ impl BotData {
 
 #[async_trait]
 impl EventHandler for Handler {
-	async fn message(&self, ctx: Context, msg: Message) {
-		let bot_data = get_bot_data(&ctx).await;
-		bigbro::big_brother_is_watching(&bot_data, &ctx, &msg).await;
+	async fn ratelimit(&self, data: RatelimitInfo) {
+		warn!("Rate limit hit: {:?}", data);
 	}
-
+	
 	async fn ready(&self, ctx: Context, ready: Ready) {
 		info!("{} is connected!", ready.user.name);
-
+		
 		let bot_data = get_bot_data(&ctx).await;
 
 		GuildId::set_application_commands(&bot_data.guild_id, &ctx.http, |commands| {
 			commands
-				.create_application_command(|cmd| { cmd.name("hello").description("Se présente") })
-				.create_application_command(|cmd| songs::register_cmd(cmd))
-				.create_application_command(|cmd| { cmd.name("tg").description("Ta gueule!") })
-				.create_application_command(|cmd| rename::register_cmd(cmd))
+			.create_application_command(|cmd| { cmd.name("hello").description("Se présente") })
+			.create_application_command(|cmd| songs::register_cmd(cmd))
+			.create_application_command(|cmd| { cmd.name("tg").description("Ta gueule!") })
+			.create_application_command(|cmd| rename::register_cmd(cmd))
 		}).await.unwrap();
+	}
+
+	async fn message(&self, ctx: Context, msg: Message) {
+		let bot_data = get_bot_data(&ctx).await;
+		bigbro::big_brother_is_watching(&bot_data, &ctx, &msg).await;
 	}
 
 	async fn interaction_create(&self, ctx: Context, interaction: Interaction) {

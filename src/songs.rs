@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::{atomic::Ordering, Arc}, time::Duration, error::Error};
-use serenity::{builder::CreateApplicationCommand, model::prelude::{command::CommandOptionType, Member, application_command::{ApplicationCommandInteraction, CommandDataOption}}, prelude::Context, json::Value};
+use serenity::{builder::CreateApplicationCommand, model::prelude::{command::CommandOptionType, Member, application_command::ApplicationCommandInteraction}, prelude::Context, json::Value};
 use tracing::{info, error};
 
 use crate::{BotData, get_bot_data};
