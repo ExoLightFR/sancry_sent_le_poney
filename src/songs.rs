@@ -218,9 +218,6 @@ Can't you feel my heart beat fast
 I want this to last
 Need you by my side";
 
-static TEST_1: &'static str = "quel gros con";
-static TEST_2: &'static str = "coucou les amis";
-
 pub fn get_songs() -> HashMap<&'static str, &'static str> {
 	let songs = HashMap::from([
 		("Les Lacs du Connemara",	CONNEMARA),
@@ -228,8 +225,6 @@ pub fn get_songs() -> HashMap<&'static str, &'static str> {
 		("Les démons de minuit",	LES_DEMONS_DE_MINUIT),
 		("Alexandrie Alexandra",	ALEXANDRIE_ALEXANDRA),
 		("Every time we touch",		EVERY_TIME_WE_TOUCH),
-		("Test 1",					TEST_1),
-		("Test 2",					TEST_2),
 	]);
 	return songs;
 }
