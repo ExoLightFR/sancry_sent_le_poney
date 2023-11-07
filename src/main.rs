@@ -1,5 +1,4 @@
 #![allow(non_snake_case)]
-#![feature(inherent_associated_types)]
 
 use std::collections::{VecDeque, HashMap};
 use std::sync::Arc;
