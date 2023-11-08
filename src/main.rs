@@ -94,10 +94,24 @@ impl BotData {
 async fn db_test(ctx: &Context, ready: &Ready) -> Result<(), Box<dyn Error>>
 {
 	let bot_data = get_bot_data(ctx).await;
+
+	info!("In db_test");
+
+	sqlx::query("INSERT INTO GuildData (id, target_id) VALUES ($1, $2)")
+		.bind(1234)
+		.bind(5678)
+		.execute(&bot_data.db)
+		.await?;
+
+	info!("Did INSERT");
+	
 	let guilds: Vec<GuildDataORM> = 
 		sqlx::query_as("SELECT id, target_id, fart_target FROM GuildData")
 			.fetch_all(&bot_data.db)
 			.await?;
+
+	info!("Did SELECT");
+
 	for guild in &guilds {
 		info!("ID: {}, tgt: {},  fart: {}", guild.id, guild.target_id, guild.fart_target);
 	}
@@ -117,7 +131,9 @@ impl EventHandler for Handler {
 	async fn ready(&self, ctx: Context, ready: Ready) {
 		info!("{} is connected!", ready.user.name);
 		
-		db_test(&ctx, &ready).await;
+		if let Err(e) = db_test(&ctx, &ready).await {
+			error!("{e}");
+		}
 		
 		let bot_data = get_bot_data(&ctx).await;
 
