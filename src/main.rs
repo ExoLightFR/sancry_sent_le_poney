@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 use std::collections::{VecDeque, HashMap};
+use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
@@ -13,7 +14,7 @@ use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
-use sqlx::PgPool;
+use sqlx::{PgPool, Executor, FromRow};
 use tokio::task::JoinHandle;
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
@@ -37,6 +38,7 @@ pub struct BotData
 	http: Arc<Http>,
 	songs_queue: RwLock<VecDeque<&'static str>>,
 	aboos: RwLock<abuse::MuteData>,
+	db: PgPool,
 }
 
 impl TypeMapKey for BotData {
@@ -48,6 +50,15 @@ pub struct GuildData
 	guild_id: GuildId,
 	target_id: u64,
 	singers: RwLock<HashMap<u64, VecDeque<&'static str>>>,
+	singing_thread: RwLock<HashMap<u64, JoinHandle<()>>>,
+}
+
+
+#[derive(FromRow)]
+pub struct GuildDataORM {
+	id: i64,
+	target_id: i64,
+	fart_target: i64,
 }
 
 // impl GuildData {
@@ -61,7 +72,7 @@ pub async fn get_bot_data(ctx: &Context) -> Arc<BotData> {
 }
 
 impl BotData {
-	pub fn new(guild_id: GuildId, sancry_id: u64, token: &str) -> Self {
+	pub fn new(guild_id: GuildId, sancry_id: u64, token: &str, db: PgPool) -> Self {
 		BotData {
 			guild_id,
 			sancry_id,
@@ -71,12 +82,30 @@ impl BotData {
 			http: Http::new(token).into(),	// Alternative syntax
 			songs_queue: VecDeque::from([]).into(),
 			aboos: abuse::MuteData::default().into(),
+			db,
 		}
 	}
 
 	async fn get_sancry(&self) -> Result<Member, SerenityError> {
 		GuildId::member(self.guild_id, self.http.clone(), self.sancry_id).await
 	}
+}
+
+async fn db_test(ctx: &Context, ready: &Ready) -> Result<(), Box<dyn Error>>
+{
+	let bot_data = get_bot_data(ctx).await;
+	let guilds: Vec<GuildDataORM> = 
+		sqlx::query_as("SELECT id, target_id, fart_target FROM GuildData")
+			.fetch_all(&bot_data.db)
+			.await?;
+	for guild in &guilds {
+		info!("ID: {}, tgt: {},  fart: {}", guild.id, guild.target_id, guild.fart_target);
+	}
+
+	for guild in &ready.guilds {
+		info!("### ID: {}", guild.id);
+	}
+	return Ok(());
 }
 
 #[async_trait]
@@ -87,6 +116,8 @@ impl EventHandler for Handler {
 	
 	async fn ready(&self, ctx: Context, ready: Ready) {
 		info!("{} is connected!", ready.user.name);
+		
+		db_test(&ctx, &ready).await;
 		
 		let bot_data = get_bot_data(&ctx).await;
 
@@ -166,6 +197,10 @@ async fn serenity(
 	let intents = GatewayIntents::GUILDS | GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT
 		| GatewayIntents::GUILD_PRESENCES | GatewayIntents::GUILD_MEMBERS;
 
+	pool.execute(include_str!("../schema.sql"))
+		.await
+		.map_err(|e| shuttle_runtime::Error::Database(format!("Migration error: {e}")))?;
+
 	let client = Client::builder(&token, intents)
 		.event_handler(Handler{})
 		.await
@@ -173,7 +208,11 @@ async fn serenity(
 
 	{
 		let mut data = client.data.write().await;
-		data.insert::<BotData>(Arc::new(BotData::new(guild_id, sancry_id, token.as_str())));
+		data.insert::<BotData>(
+			Arc::new(
+				BotData::new(guild_id, sancry_id, token.as_str(), pool)
+			)
+		);
 	}
 
 	Ok(client.into())
