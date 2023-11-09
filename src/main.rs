@@ -57,8 +57,8 @@ pub struct GuildData
 #[derive(FromRow)]
 pub struct GuildDataORM {
 	id: i64,
-	target_id: i64,
-	fart_target: i64,
+	target_id: Option<i64>,
+	fart_target: Option<i64>,
 }
 
 // impl GuildData {
@@ -113,7 +113,7 @@ async fn db_test(ctx: &Context, ready: &Ready) -> Result<(), Box<dyn Error>>
 	info!("Did SELECT");
 
 	for guild in &guilds {
-		info!("ID: {}, tgt: {},  fart: {}", guild.id, guild.target_id, guild.fart_target);
+		info!("ID: {}, tgt: {:?},  fart: {:?}", guild.id, guild.target_id, guild.fart_target);
 	}
 
 	for guild in &ready.guilds {
