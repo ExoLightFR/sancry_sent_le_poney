@@ -2,6 +2,7 @@
 name = "SancrySentLePoney"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [dependencies]
 anyhow = "1.0.66"
@@ -14,4 +15,5 @@ serenity = { version = "0.11.5", default-features = false, features = ["client",
 tokio = "1.26.0"
 tracing = "0.1.37"
 serde = { version = "1.0.190", features = ["derive"] }
-sqlx = { version = "0.7.2", features = ["runtime-tokio-native-tls", "postgres"] }
+sqlx = { version = "0.7.2", features = ["runtime-tokio-native-tls", "postgres", "macros"] }
+sqlx-cli = "0.7.2"
