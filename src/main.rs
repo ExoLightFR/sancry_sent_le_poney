@@ -99,9 +99,9 @@ impl EventHandler for Handler {
 	async fn ready(&self, ctx: Context, ready: Ready) {
 		info!("{} is connected!", ready.user.name);
 		
-		if let Err(e) = db::db_test(&ctx, &ready).await {
-			error!("{e}");
-		}
+		// if let Err(e) = db::db_test(&ctx, &ready).await {
+		// 	error!("{e}");
+		// }
 		
 		let bot_data = get_bot_data(&ctx).await;
 
@@ -189,7 +189,7 @@ async fn serenity(
 	// 	.await
 	// 	.map_err(|e| shuttle_runtime::Error::Database(format!("Migration error: {e}")))?;
 
-	db::my_migrate(&persist, &pool).await.expect("Error migrating database");
+	// db::my_migrate(&persist, &pool).await.expect("Error migrating database");
 	// persist.clear().expect("damn");
 
 	// sqlx::migrate!("./migrations")
