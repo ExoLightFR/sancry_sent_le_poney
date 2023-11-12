@@ -98,24 +98,31 @@ pub fn get_all_guides() -> HashMap<&'static str, &'static str> {
 
 pub fn register_cmd(cmd: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
 	let guides = get_guides();	
-	cmd.name("chuck").description("RTFM")
-		.create_option(|opt| {
-			opt.name("catégorie")
+	
+	cmd.name("chuck").description("RTFM");
+	for (category, modules) in guides {
+		cmd.create_option(|opt| {
+			opt.name(category)
 				.description("Catégorie de module")
-				.kind(CommandOptionType::SubCommand);
-				// .required(true);
-			for (cat, modules) in &guides {
-				opt.create_sub_option(|sub_opt| {
-						sub_opt.name(cat)
-							.description("Module DCS")
-							.kind(CommandOptionType::String);
-							// .required(true);
-						modules.keys().for_each(|module| { sub_opt.add_string_choice(module, module); });
-						sub_opt
-				});
-			}
+				.kind(CommandOptionType::SubCommandGroup);
+
+			opt.create_sub_option(|subcmd| {
+				subcmd.name("guide")
+					.description(format!("Obtenir le Chuck's Guide d'un {category}").as_str())
+					.kind(CommandOptionType::SubCommand)
+					.create_sub_option(|subopt| {
+						subopt.name("module")
+							.description("Le module DCS en question")
+							.kind(CommandOptionType::String)
+							.required(true);
+						modules.keys().for_each(|name| { subopt.add_string_choice(name, name); });
+						subopt
+					})
+			});
 			opt
-		})
+		});
+	}
+	cmd
 }
 
 pub fn exec_chuck_cmd(ctx: &Context, command: &ApplicationCommandInteraction) -> Result<String, String> {
