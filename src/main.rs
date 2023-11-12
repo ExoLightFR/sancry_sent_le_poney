@@ -26,6 +26,7 @@ mod songs;
 mod bigbro;
 mod rename;
 mod abuse;
+mod db;
 
 struct Handler;
 
@@ -46,20 +47,15 @@ impl TypeMapKey for BotData {
 	type Value = Arc<BotData>;
 }
 
+pub struct JeVeuxChanter {
+	queue: VecDeque<&'static str>,
+	task: JoinHandle<()>,
+}
 pub struct GuildData
 {
 	guild_id: GuildId,
 	target_id: u64,
-	singers: RwLock<HashMap<u64, VecDeque<&'static str>>>,
-	singing_thread: RwLock<HashMap<u64, JoinHandle<()>>>,
-}
-
-
-#[derive(FromRow)]
-pub struct GuildDataORM {
-	id: i64,
-	target_id: Option<i64>,
-	fart_target: Option<i64>,
+	singers: RwLock<HashMap<u64, JeVeuxChanter>>,
 }
 
 // impl GuildData {
@@ -92,54 +88,6 @@ impl BotData {
 	}
 }
 
-#[derive(FromRow, Debug)]
-struct Chokbar {
-	id: i64,
-	other_id: Option<i64>
-}
-
-async fn db_test(ctx: &Context, ready: &Ready) -> Result<(), Box<dyn Error>>
-{
-	let bot_data = get_bot_data(ctx).await;
-
-	info!("In db_test");
-
-	// sqlx::query("INSERT INTO GuildData (id, target_id) VALUES ($1, $2)")
-	// 	.bind(1234)
-	// 	.bind(5678)
-	// 	.execute(&bot_data.db)
-	// 	.await?;
-
-	// info!("Did INSERT");
-	
-	// let guilds: Vec<GuildDataORM> = 
-	// 	sqlx::query_as("SELECT id, target_id, fart_target FROM GuildData")
-	// 		.fetch_all(&bot_data.db)
-	// 		.await?;
-
-	// info!("Did SELECT");
-
-	sqlx::query("INSERT INTO chokbar (id, other_id) VALUES ($1, $2) ON CONFLICT(id) DO NOTHING")
-		.bind(1234)
-		.bind(5678)
-		.execute(&bot_data.db)
-		.await?;
-
-	let guilds: Vec<Chokbar> = sqlx::query_as("SELECT id, other_id FROM chokbar")
-		.fetch_all(&bot_data.db)
-		.await?;
-
-	guilds.iter().for_each(|x| info!("{:?}", x));
-	// for guild in &guilds {
-	// 	info!("ID: {}, tgt: {:?},  fart: {:?}", guild.id, guild.target_id, guild.fart_target);
-	// }
-
-	for guild in &ready.guilds {
-		info!("### ID: {}", guild.id);
-	}
-	return Ok(());
-}
-
 #[async_trait]
 impl EventHandler for Handler {
 	async fn ratelimit(&self, data: RatelimitInfo) {
@@ -149,7 +97,7 @@ impl EventHandler for Handler {
 	async fn ready(&self, ctx: Context, ready: Ready) {
 		info!("{} is connected!", ready.user.name);
 		
-		if let Err(e) = db_test(&ctx, &ready).await {
+		if let Err(e) = db::db_test(&ctx, &ready).await {
 			error!("{e}");
 		}
 		
@@ -210,53 +158,15 @@ impl EventHandler for Handler {
 	}
 }
 
-// Migrations list in persist map are in form {timestamp: String, file_name: String}
-async fn my_migrate(persist: &PersistInstance, pool: &PgPool) -> Result<(), Box<dyn Error>> {
-	// Load list of all finished migrations
-	let finished_migrations_keys = persist.list()?;
-	let finished_migrations: Vec<String> = finished_migrations_keys.iter()
-		.map( |key| persist.load::<String>(key).expect("BLYAT") )
-		.collect();
-	
-	// Get list of all migration files
-	let files = std::fs::read_dir("./migrations")?;
-	let mut file_names: Vec<String> = vec![];
-	for file in files {
-		let file = file?.file_name().into_string().expect("Fatal err with filesys");
-		if !file.ends_with(".sql") {
-			continue;
-		}
-		file_names.push(file);
-	}
-
-	// Remove all finished migrations from list and sort them by date
-	file_names = file_names.into_iter()
-		.filter(|x| !finished_migrations.contains(x))
-		.collect();
-	file_names.sort();
-
-	// Execute all unexecuted migrations, and remember them in the Persist instance
-	for file in file_names {
-		let path = format!("./migrations/{file}");
-		let query = std::fs::read_to_string(path)?;
-		pool.execute(query.as_str()).await?;
-
-		let cut = file.find('_').unwrap_or(file.len());	// Get a slice of only the timestamp before the '_'
-		let key = &file[..cut];
-		persist.save(key, file.clone())?;
-		info!("Successfully executed migration of `{file}'");
-	}
-
-	return Ok(());
-}
-
 // Permissions integer: 50565957942343
 
 #[shuttle_runtime::main]
 async fn serenity(
 	#[shuttle_secrets::Secrets] secret_store: SecretStore,
 	#[shuttle_persist::Persist] persist: PersistInstance,
-	#[shuttle_shared_db::Postgres] pool: PgPool,
+	#[shuttle_shared_db::Postgres(
+		local_uri = "postgres://postgres:{secrets.PSQL_PW}@localhost:5432/postgres"
+	)] pool: PgPool,
 ) -> shuttle_serenity::ShuttleSerenity {
 	// Get the discord token set in `Secrets.toml`
 	let token = secret_store.get("DISCORD_TOKEN").expect("'DISCORD_TOKEN' was not found");
@@ -275,7 +185,7 @@ async fn serenity(
 	// 	.await
 	// 	.map_err(|e| shuttle_runtime::Error::Database(format!("Migration error: {e}")))?;
 
-	my_migrate(&persist, &pool).await.expect("Error migrating database");
+	db::my_migrate(&persist, &pool).await.expect("Error migrating database");
 	// persist.clear().expect("damn");
 
 	// sqlx::migrate!("./migrations")
