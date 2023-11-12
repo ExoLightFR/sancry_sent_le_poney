@@ -27,6 +27,8 @@ mod bigbro;
 mod rename;
 mod abuse;
 mod db;
+mod chuck;
+mod cmd_utils;
 
 struct Handler;
 
@@ -109,6 +111,7 @@ impl EventHandler for Handler {
 			// .create_application_command(|cmd| songs::register_cmd(cmd))
 			.create_application_command(|cmd| { cmd.name("tg").description("Ta gueule!") })
 			// .create_application_command(|cmd| rename::register_cmd(cmd))
+			.create_application_command(|cmd| chuck::register_cmd(cmd))
 		}).await.unwrap();
 	}
 
@@ -131,6 +134,7 @@ impl EventHandler for Handler {
 				// "chante" => songs::exec_start_singing(&bot_data, &ctx, &command).await,
 				"tg" => songs::exec_stop_singing(&bot_data, &command).await,
 				// "rename" => rename::watashi_no_namae_ha_sankuri_desu(&ctx, &command).await,
+				"chuck" => chuck::exec_chuck_cmd(&ctx, &command),
 				command => unreachable!("Unknown command: {}", command),
 			};
 			let response_content = match response_content {
