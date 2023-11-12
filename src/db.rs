@@ -52,7 +52,7 @@ pub async fn db_test(ctx: &Context, ready: &Ready) -> Result<(), Box<dyn Error>>
 		.execute(&bot_data.db)
 		.await?;
 
-	let guilds: Vec<Chokbar> = sqlx::query_as!(Chokbar, "SELECT id, other_id FROM chokbar")
+	let guilds: Vec<Chokbar> = sqlx::query_as!(Chokbar, "SELECT * FROM chokbar")
 		.fetch_all(&bot_data.db)
 		.await?;
 
