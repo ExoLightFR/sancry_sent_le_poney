@@ -26,7 +26,7 @@ mod songs;
 mod bigbro;
 mod rename;
 mod abuse;
-mod db;
+// mod db;
 mod chuck;
 mod cmd_utils;
 
