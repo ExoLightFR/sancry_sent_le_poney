@@ -22,50 +22,50 @@ struct Chokbar {
 	other_id: Option<i64>
 }
 
-pub async fn db_test(ctx: &Context, ready: &Ready) -> Result<(), Box<dyn Error>>
-{
-	let bot_data = get_bot_data(ctx).await;
+// pub async fn db_test(ctx: &Context, ready: &Ready) -> Result<(), Box<dyn Error>>
+// {
+// 	let bot_data = get_bot_data(ctx).await;
 
-	info!("In db_test");
+// 	info!("In db_test");
 
-	// sqlx::query("INSERT INTO GuildData (id, target_id) VALUES ($1, $2)")
-	// 	.bind(1234)
-	// 	.bind(5678)
-	// 	.execute(&bot_data.db)
-	// 	.await?;
+// 	// sqlx::query("INSERT INTO GuildData (id, target_id) VALUES ($1, $2)")
+// 	// 	.bind(1234)
+// 	// 	.bind(5678)
+// 	// 	.execute(&bot_data.db)
+// 	// 	.await?;
 
-	// info!("Did INSERT");
+// 	// info!("Did INSERT");
 	
-	// let guilds: Vec<GuildDataORM> = 
-	// 	sqlx::query_as("SELECT id, target_id, fart_target FROM GuildData")
-	// 		.fetch_all(&bot_data.db)
-	// 		.await?;
+// 	// let guilds: Vec<GuildDataORM> = 
+// 	// 	sqlx::query_as("SELECT id, target_id, fart_target FROM GuildData")
+// 	// 		.fetch_all(&bot_data.db)
+// 	// 		.await?;
 
-	// info!("Did SELECT");
+// 	// info!("Did SELECT");
 
-	// sqlx::query!("INSERT INTO chokbar (id, other_id) VALUES ($1, $2) ON CONFLICT(id) DO NOTHING")
-	// 	.bind(1234)
-	// 	.bind(5678)
-	// 	.execute(&bot_data.db)
-	// 	.await?;
-	sqlx::query!("INSERT INTO chokbar (id, other_id) VALUES ($1, $2) ON CONFLICT(id) DO NOTHING", 1235, 5678)
-		.execute(&bot_data.db)
-		.await?;
+// 	// sqlx::query!("INSERT INTO chokbar (id, other_id) VALUES ($1, $2) ON CONFLICT(id) DO NOTHING")
+// 	// 	.bind(1234)
+// 	// 	.bind(5678)
+// 	// 	.execute(&bot_data.db)
+// 	// 	.await?;
+// 	sqlx::query!("INSERT INTO chokbar (id, other_id) VALUES ($1, $2) ON CONFLICT(id) DO NOTHING", 1235, 5678)
+// 		.execute(&bot_data.db)
+// 		.await?;
 
-	let guilds: Vec<Chokbar> = sqlx::query_as!(Chokbar, "SELECT * FROM chokbar")
-		.fetch_all(&bot_data.db)
-		.await?;
+// 	let guilds: Vec<Chokbar> = sqlx::query_as!(Chokbar, "SELECT * FROM chokbar")
+// 		.fetch_all(&bot_data.db)
+// 		.await?;
 
-	guilds.iter().for_each(|x| info!("{:?}", x));
-	// for guild in &guilds {
-	// 	info!("ID: {}, tgt: {:?},  fart: {:?}", guild.id, guild.target_id, guild.fart_target);
-	// }
+// 	guilds.iter().for_each(|x| info!("{:?}", x));
+// 	// for guild in &guilds {
+// 	// 	info!("ID: {}, tgt: {:?},  fart: {:?}", guild.id, guild.target_id, guild.fart_target);
+// 	// }
 
-	for guild in &ready.guilds {
-		info!("### ID: {}", guild.id);
-	}
-	return Ok(());
-}
+// 	for guild in &ready.guilds {
+// 		info!("### ID: {}", guild.id);
+// 	}
+// 	return Ok(());
+// }
 
 // Migrations list in persist map are in form {timestamp: String, file_name: String}
 pub async fn my_migrate(persist: &PersistInstance, pool: &PgPool) -> Result<(), Box<dyn Error>> {

@@ -1,3 +1,7 @@
+use std::time::SystemTime;
+
+use sqlx::{FromRow, types::{Decimal, BigDecimal}};
+
 #[derive(FromRow)]
 pub struct User {
 	id:  u64,
@@ -5,9 +9,11 @@ pub struct User {
 	join_sound: Option<String>,
 }
 
-#[derive(FromRow)]
+#[derive(FromRow, Debug)]
 pub struct Guild {
-	id: u64,
+	pub guild_id: BigDecimal,
+	pub sing_id: Option<Decimal>,
+	pub fart_id: Option<Decimal>,
 }
 
 #[derive(FromRow)]

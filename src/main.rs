@@ -8,12 +8,13 @@ use std::sync::atomic::AtomicBool;
 use serenity::client::Cache;
 use serenity::http::Http;
 use serenity::http::ratelimiting::RatelimitInfo;
-use serenity::model::prelude::{Interaction, InteractionResponseType, Presence, Member};
+use serenity::model::prelude::{Interaction, InteractionResponseType, Presence, Member, Guild};
 use serenity::{async_trait, model::prelude::GuildId};
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
+use sqlx::types::{Decimal, BigDecimal};
 use sqlx::{PgPool, Executor, FromRow};
 use tokio::task::JoinHandle;
 use tokio::sync::RwLock;
@@ -26,9 +27,11 @@ mod songs;
 mod bigbro;
 mod rename;
 mod abuse;
-// mod db;
+mod db;
 mod chuck;
 mod cmd_utils;
+#[allow(dead_code)]
+mod orm;
 
 struct Handler;
 
@@ -48,21 +51,6 @@ pub struct BotData
 impl TypeMapKey for BotData {
 	type Value = Arc<BotData>;
 }
-
-pub struct JeVeuxChanter {
-	queue: VecDeque<&'static str>,
-	task: JoinHandle<()>,
-}
-pub struct GuildData
-{
-	guild_id: GuildId,
-	target_id: u64,
-	singers: RwLock<HashMap<u64, JeVeuxChanter>>,
-}
-
-// impl GuildData {
-// 	type SongQueue = RwLock<VecDeque<&'static str>>;
-// }
 
 // Get a read lock from ctx.data, and return the arc to the BotData struct in the TypeMap
 pub async fn get_bot_data(ctx: &Context) -> Arc<BotData> {
@@ -98,11 +86,7 @@ impl EventHandler for Handler {
 	
 	async fn ready(&self, ctx: Context, ready: Ready) {
 		info!("{} is connected!", ready.user.name);
-		
-		// if let Err(e) = db::db_test(&ctx, &ready).await {
-		// 	error!("{e}");
-		// }
-		
+
 		let bot_data = get_bot_data(&ctx).await;
 
 		GuildId::set_application_commands(&bot_data.guild_id, &ctx.http, |commands| {
@@ -113,6 +97,19 @@ impl EventHandler for Handler {
 			// .create_application_command(|cmd| rename::register_cmd(cmd))
 			.create_application_command(|cmd| chuck::register_cmd(cmd))
 		}).await.unwrap();
+	}
+
+	async fn guild_create(&self, ctx: Context, guild: Guild, _is_new: bool) {
+		let bot_data = get_bot_data(&ctx).await;
+		let guild_id: u64 = guild.id.into();
+
+		let res = sqlx::query!("INSERT INTO guilds (guild_id) VALUES ($1)
+		ON CONFLICT(guild_id) DO NOTHING", BigDecimal::from(guild_id))
+			.execute(&bot_data.db)
+			.await;
+		if let Err(e) = res {
+			error!("Error inserting guild in DB: {e}");
+		}
 	}
 
 	async fn message(&self, ctx: Context, msg: Message) {
@@ -185,17 +182,8 @@ async fn serenity(
 	let intents = GatewayIntents::GUILDS | GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT
 		| GatewayIntents::GUILD_PRESENCES | GatewayIntents::GUILD_MEMBERS;
 
-	// pool.execute(include_str!("../schema.sql"))
-	// 	.await
-	// 	.map_err(|e| shuttle_runtime::Error::Database(format!("Migration error: {e}")))?;
-
-	// db::my_migrate(&persist, &pool).await.expect("Error migrating database");
+	db::my_migrate(&persist, &pool).await.expect("Error migrating database");
 	// persist.clear().expect("damn");
-
-	// sqlx::migrate!("./migrations")
-	// 	.run(&pool)
-	// 	.await
-	// 	.expect("oops");
 
 	let client = Client::builder(&token, intents)
 		.event_handler(Handler{})

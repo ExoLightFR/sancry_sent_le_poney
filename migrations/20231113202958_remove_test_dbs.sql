@@ -1,0 +1,3 @@
+-- Add migration script here
+DROP TABLE CHOKBAR CASCADE;
+DROP TABLE FOOBAR CASCADE;
