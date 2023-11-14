@@ -1,9 +1,9 @@
 use std::{str::FromStr, sync::Arc, error::Error};
 
-use serenity::{prelude::*, model::prelude::{Message, ReactionType, Presence, ActivityType, GuildId}};
+use serenity::{prelude::*, model::{prelude::{Message, ReactionType, Presence, ActivityType, GuildId}, guild::Member}};
 use tracing::{error, info};
 
-use crate::BotData;
+use crate::{BotData, get_bot_data};
 
 use crate::orm;
 
@@ -83,5 +83,21 @@ pub async fn check_sancry_jeu_de_con(
 			}).await?;
 		}
 	}
+	return Ok(());
+}
+
+pub async fn toi_tu_restes_comme_ca(
+	ctx: &Context,
+	_old_if_available: &Option<Member>,
+	new: &Member
+) -> Result<(), Box<dyn Error>>
+{
+	let bot_data = get_bot_data(&ctx).await;
+	if new.guild_id != bot_data.guild_id || new.user.id != bot_data.sancry_id {
+		return Ok(());
+	}
+	// let sancry_hardcoded_name = "enturnv";
+	let sancry = GuildId::member(bot_data.guild_id, ctx.http.clone(), bot_data.sancry_id).await?;
+	sancry.edit(ctx.http.clone(), |x| x.nickname("")).await?;
 	return Ok(());
 }

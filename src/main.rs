@@ -157,6 +157,12 @@ impl EventHandler for Handler {
 			error!("Error checking is Sancry's playing LoL: {e}");
 		}
 	}
+
+	async fn guild_member_update(&self, ctx: Context, _old_if_available: Option<Member>, new: Member) {
+		if let Err(e) = bigbro::toi_tu_restes_comme_ca(&ctx, &_old_if_available, &new).await {
+			error!("Error renaming sancry: {e}");
+		}
+	}
 }
 
 // Permissions integer: 50565957942343
