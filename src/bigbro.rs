@@ -51,8 +51,8 @@ pub async fn check_sancry_jeu_de_con(
 ) -> Result<(), Box<dyn Error>>
 {
 	let guild_id = presence.guild_id.unwrap();
-	let guild = sqlx::query_as!(orm::Guild, "SELECT * FROM guilds WHERE guild_id = $1",
-		guild_id.to_string())
+	let guild: orm::Guild = sqlx::query_as("SELECT * FROM guilds WHERE guild_id = $1")
+		.bind(guild_id.to_string())
 		.fetch_one(&bot_data.db)
 		.await?;
 

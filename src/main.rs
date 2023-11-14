@@ -103,8 +103,9 @@ impl EventHandler for Handler {
 		let bot_data = get_bot_data(&ctx).await;
 		let guild_id: u64 = guild.id.into();
 
-		let res = sqlx::query!("INSERT INTO guilds (guild_id) VALUES ($1)
-		ON CONFLICT(guild_id) DO NOTHING", guild_id.to_string())
+		let res = sqlx::query("INSERT INTO guilds (guild_id) VALUES ($1)
+		ON CONFLICT(guild_id) DO NOTHING")
+			.bind(guild_id.to_string())
 			.execute(&bot_data.db)
 			.await;
 		if let Err(e) = res {
