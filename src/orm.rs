@@ -1,26 +1,28 @@
 use std::time::SystemTime;
 
-use sqlx::{FromRow, types::{Decimal, BigDecimal}};
+use sqlx::FromRow;
 
 #[derive(FromRow)]
 pub struct User {
-	id:  u64,
+	id:  String,
 	points: i32,
 	join_sound: Option<String>,
 }
 
 #[derive(FromRow, Debug)]
 pub struct Guild {
-	pub guild_id: BigDecimal,
-	pub sing_id: Option<Decimal>,
-	pub fart_id: Option<Decimal>,
+	pub guild_id: String,
+	pub sing_id: Option<String>,
+	pub fart_id: Option<String>,
 }
 
 #[derive(FromRow)]
 pub struct Pin {
-	msg_id: u64,
+	msg_id: String,
 	num_reactions: i32,
 	last_react_activity: SystemTime,
+	guild_id: String,
+	user_id: String,
 }
 
 #[derive(FromRow)]

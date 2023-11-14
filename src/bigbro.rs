@@ -5,7 +5,7 @@ use tracing::{error, info};
 
 use crate::BotData;
 
-// use crate::Bot;
+use crate::orm;
 
 
 
@@ -50,20 +50,36 @@ pub async fn check_sancry_jeu_de_con(
 	presence: &Presence
 ) -> Result<(), Box<dyn Error>>
 {
-	if presence.user.id != bot_data.sancry_id {
+	let guild_id = presence.guild_id.unwrap();
+	let guild = sqlx::query_as!(orm::Guild, "SELECT * FROM guilds WHERE guild_id = $1",
+		guild_id.to_string())
+		.fetch_one(&bot_data.db)
+		.await?;
+
+	let target_id: u64 = match guild.sing_id {
+		Some(id) => id.parse()?,
+		None => return Ok(()),
+	};
+
+	let target_name = GuildId::member(guild_id, ctx.http.clone(), target_id)
+		.await?
+		.nick.unwrap();
+
+	if presence.user.id != target_id {
 		return Ok(());
 	}
+
 	let mut activities = presence.activities
 		.iter()
 		.filter(|x| x.kind == ActivityType::Playing || x.kind == ActivityType::Competing);
 
 	if activities.any(|x| x.name == "League of Legends") {
-		info!("ATTENTION!!! SANCRY JOUE A LOL");
-		let sancry = GuildId::member(bot_data.guild_id, ctx.http.clone(), bot_data.sancry_id)
+		info!("ATTENTION!!! {target_name} JOUE A LOL");
+		let target = GuildId::member(guild_id, ctx.http.clone(), bot_data.sancry_id)
 			.await?;
-		for _ in 1..10 {
-			sancry.user.direct_message(ctx.http.clone(), |m| {
-				m.content("WTF SANCRY ARRÊTE DE JOUER À CE JEU DE CON TOUT DE SUITE")
+		for _ in 1..5 {
+			target.user.direct_message(ctx.http.clone(), |m| {
+				m.content(format!("WTF {target_name} ARRÊTE DE JOUER À CE JEU DE CON TOUT DE SUITE"))
 			}).await?;
 		}
 	}
