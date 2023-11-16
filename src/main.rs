@@ -32,6 +32,7 @@ mod chuck;
 mod cmd_utils;
 #[allow(dead_code)]
 mod orm;
+mod force_nick;
 
 struct Handler;
 
@@ -96,6 +97,7 @@ impl EventHandler for Handler {
 			.create_application_command(|cmd| { cmd.name("tg").description("Ta gueule!") })
 			// .create_application_command(|cmd| rename::register_cmd(cmd))
 			.create_application_command(|cmd| chuck::register_cmd(cmd))
+			.create_application_command(|cmd| force_nick::register_force_name(cmd))
 		}).await.unwrap();
 	}
 
@@ -133,6 +135,7 @@ impl EventHandler for Handler {
 				"tg" => songs::exec_stop_singing(&bot_data, &command).await,
 				// "rename" => rename::watashi_no_namae_ha_sankuri_desu(&ctx, &command).await,
 				"chuck" => chuck::exec_chuck_cmd(&ctx, &command),
+				"forcename" => force_nick::exec_force_name(&ctx, &command).await,
 				command => unreachable!("Unknown command: {}", command),
 			};
 			let response_content = match response_content {
@@ -160,7 +163,7 @@ impl EventHandler for Handler {
 	}
 
 	async fn guild_member_update(&self, ctx: Context, _old_if_available: Option<Member>, new: Member) {
-		if let Err(e) = bigbro::toi_tu_restes_comme_ca(&ctx, &_old_if_available, &new).await {
+		if let Err(e) = force_nick::toi_tu_restes_comme_ca(&ctx, &_old_if_available, &new).await {
 			error!("Error renaming sancry: {e}");
 		}
 	}

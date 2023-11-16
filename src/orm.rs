@@ -4,9 +4,10 @@ use sqlx::FromRow;
 
 #[derive(FromRow)]
 pub struct User {
-	id:  String,
-	points: i32,
-	join_sound: Option<String>,
+	pub user_id:  String,
+	pub points: i32,
+	pub join_sound: Option<String>,
+	pub forced_name: Option<String>,
 }
 
 #[derive(FromRow, Debug)]
