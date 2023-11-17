@@ -93,7 +93,7 @@ impl EventHandler for Handler {
 		GuildId::set_application_commands(&bot_data.guild_id, &ctx.http, |commands| {
 			commands
 			.create_application_command(|cmd| { cmd.name("hello").description("Se présente") })
-			// .create_application_command(|cmd| songs::register_cmd(cmd))
+			.create_application_command(|cmd| songs::register_cmd(cmd))
 			.create_application_command(|cmd| { cmd.name("tg").description("Ta gueule!") })
 			// .create_application_command(|cmd| rename::register_cmd(cmd))
 			.create_application_command(|cmd| chuck::register_cmd(cmd))
@@ -132,7 +132,7 @@ impl EventHandler for Handler {
  
 			let response_content = match command.data.name.as_str() {
 				"hello" => Ok("Salut. Ma première mission étant accomplie, je me reconvertis dans le faire-chiage de grande ampleur. À suivre.".to_string()),
-				// "chante" => songs::exec_start_singing(&bot_data, &ctx, &command).await,
+				"chante" => songs::exec_start_singing(&bot_data, &ctx, &command).await,
 				"tg" => songs::exec_stop_singing(&bot_data, &command).await,
 				// "rename" => rename::watashi_no_namae_ha_sankuri_desu(&ctx, &command).await,
 				"chuck" => chuck::exec_chuck_cmd(&ctx, &command),

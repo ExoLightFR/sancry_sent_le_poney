@@ -254,6 +254,9 @@ pub async fn exec_start_singing(
 		},
 		None => return Err("Error: invalid argument".to_string()),
 	};
+	if !command.member.as_ref().unwrap().permissions.unwrap().administrator() {
+		return Err("You're not an admin!".into());
+	}
 
 	info!("{} chose {song_choice}", command.user.name);
 	let songs = get_songs();
