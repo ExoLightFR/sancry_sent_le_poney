@@ -1,12 +1,12 @@
 use std::error::Error;
 
 use serenity::{client::Context, model::{application::{interaction::application_command::ApplicationCommandInteraction, command::CommandOptionType}, guild::Member, id::GuildId}, builder::CreateApplicationCommand, json};
-use tracing::info;
+use tracing::{info, warn, trace};
 
 use crate::{get_bot_data, orm, cmd_utils::flatten_cmd_data_option};
 
 pub fn register_force_name(cmd: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-	cmd.name("forcename").description("trucmuche")
+	cmd.name("forcename").description("haha funi")
 		.create_option(|opt| {
 			opt.name("user")
 				.description("Target user")
@@ -22,6 +22,16 @@ pub fn register_force_name(cmd: &mut CreateApplicationCommand) -> &mut CreateApp
 		})
 }
 
+pub fn register_unforce_name(cmd: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
+	cmd.name("unforce").description("trucmuche")
+		.create_option(|opt| {
+			opt.name("user")
+				.description("Target user")
+				.kind(CommandOptionType::User)
+				.required(true)
+		})
+}
+
 pub async fn exec_force_name(ctx: &Context, command: &ApplicationCommandInteraction) -> Result<String, String> {
 	let bot_data = get_bot_data(&ctx).await;
 	let tgt_user_id = flatten_cmd_data_option(command, 0);
@@ -32,8 +42,6 @@ pub async fn exec_force_name(ctx: &Context, command: &ApplicationCommandInteract
 	if !command.member.as_ref().unwrap().permissions.unwrap().administrator() {
 		return Err("You're not an admin!".into());
 	}
-	info!("USER: {:?}", tgt_user_id);
-	info!("NAME: {:?}", new_name);
 
 	let tgt_user_id = tgt_user_id.ok_or("No user given!".to_string())?.as_str().unwrap();
 	let new_name = match new_name {
@@ -61,6 +69,29 @@ pub async fn exec_force_name(ctx: &Context, command: &ApplicationCommandInteract
 	return Ok("OK".into());
 }
 
+pub async fn exec_unforce_name(ctx: &Context, command: &ApplicationCommandInteraction) -> Result<String, String> {
+	let bot_data = get_bot_data(&ctx).await;
+	let tgt_user_id = flatten_cmd_data_option(command, 0);
+	if command.guild_id.is_none() || *command.guild_id.as_ref().unwrap() != bot_data.guild_id {
+		return Err("Wrong server mate".into());
+	}
+	if !command.member.as_ref().unwrap().permissions.unwrap().administrator() {
+		return Err("You're not an admin!".into());
+	}
+
+	let tgt_user_id = tgt_user_id.ok_or("No user given!".to_string())?.as_str().unwrap();
+	let tgt_user_id: u64 = tgt_user_id.parse().unwrap();
+
+	sqlx::query("INSERT INTO users (user_id) VALUES ($1)
+			ON CONFLICT(user_id)
+			DO UPDATE SET forced_name = NULL")
+		.bind(tgt_user_id.to_string())
+		.execute(&bot_data.db)
+		.await
+		.map_err(|e| e.to_string())?;
+
+	return Ok("Ouais, liberté ou un truc du genre là".into());
+}
 
 pub async fn toi_tu_restes_comme_ca(
 	ctx: &Context,
@@ -72,7 +103,6 @@ pub async fn toi_tu_restes_comme_ca(
 	if new.guild_id != bot_data.guild_id {
 		return Ok(());
 	}
-	// let sancry_hardcoded_name = "enturnv";
 	let user_db: Option<orm::User> = sqlx::query_as("SELECT * FROM users WHERE user_id = $1")
 		.bind(new.user.id.to_string())
 		.fetch_optional(&bot_data.db)
@@ -81,7 +111,14 @@ pub async fn toi_tu_restes_comme_ca(
 		return Ok(());
 	}
 	let user_db = user_db.unwrap();
-	let member = GuildId::member(bot_data.guild_id, ctx.http.clone(), new.user.id).await?;
-	member.edit(ctx.http.clone(), |x| x.nickname(user_db.forced_name.unwrap())).await?;
+	let forced_name = user_db.forced_name.unwrap();
+	if new.display_name().as_str() == forced_name {
+		return Ok(());
+	}
+	let member = match ctx.cache.member(bot_data.guild_id, new.user.id) {
+		Some(m) => m,
+		None => GuildId::member(bot_data.guild_id, ctx.http.clone(), new.user.id).await?,
+	};
+	member.edit(ctx.http.clone(), |x| x.nickname(forced_name)).await?;
 	return Ok(());
 }

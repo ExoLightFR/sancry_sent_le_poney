@@ -98,6 +98,7 @@ impl EventHandler for Handler {
 			// .create_application_command(|cmd| rename::register_cmd(cmd))
 			.create_application_command(|cmd| chuck::register_cmd(cmd))
 			.create_application_command(|cmd| force_nick::register_force_name(cmd))
+			.create_application_command(|cmd| force_nick::register_unforce_name(cmd))
 		}).await.unwrap();
 	}
 
@@ -136,6 +137,7 @@ impl EventHandler for Handler {
 				// "rename" => rename::watashi_no_namae_ha_sankuri_desu(&ctx, &command).await,
 				"chuck" => chuck::exec_chuck_cmd(&ctx, &command),
 				"forcename" => force_nick::exec_force_name(&ctx, &command).await,
+				"unforce" => force_nick::exec_unforce_name(&ctx, &command).await,
 				command => unreachable!("Unknown command: {}", command),
 			};
 			let response_content = match response_content {
