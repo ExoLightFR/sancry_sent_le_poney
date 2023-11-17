@@ -1,7 +1,6 @@
 use std::error::Error;
 
-use serenity::{client::Context, model::{application::{interaction::application_command::ApplicationCommandInteraction, command::CommandOptionType}, guild::Member, id::GuildId}, builder::CreateApplicationCommand, json};
-use tracing::{info, warn, trace};
+use serenity::{client::Context, model::{application::{interaction::application_command::ApplicationCommandInteraction, command::CommandOptionType}, guild::Member, id::GuildId}, builder::CreateApplicationCommand};
 
 use crate::{get_bot_data, orm, cmd_utils::flatten_cmd_data_option};
 
