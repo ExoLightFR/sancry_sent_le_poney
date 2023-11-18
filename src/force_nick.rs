@@ -35,8 +35,8 @@ pub async fn exec_force_name(ctx: &Context, command: &ApplicationCommandInteract
 	let bot_data = get_bot_data(&ctx).await;
 	let tgt_user_id = flatten_cmd_data_option(command, 0);
 	let new_name = flatten_cmd_data_option(command, 1);
-	if command.guild_id.is_none() || *command.guild_id.as_ref().unwrap() != bot_data.guild_id {
-		return Err("Wrong server mate".into());
+	if command.guild_id.is_none() {
+		return Err("Not in a server".into());
 	}
 	if !command.member.as_ref().unwrap().permissions.unwrap().administrator() {
 		return Err("You're not an admin!".into());
@@ -48,10 +48,11 @@ pub async fn exec_force_name(ctx: &Context, command: &ApplicationCommandInteract
 		Some(x) => x.as_str().unwrap(),
 	};
 
-	sqlx::query("INSERT INTO users (user_id, forced_name) VALUES ($1, $2)
-			ON CONFLICT(user_id)
+	sqlx::query("INSERT INTO users (user_id, guild_id, forced_name) VALUES ($1, $2, $3)
+			ON CONFLICT ON CONSTRAINT users_pk
 			DO UPDATE SET forced_name = $2")
 		.bind(tgt_user_id)
+		.bind(command.guild_id.unwrap().to_string())
 		.bind(new_name)
 		.execute(&bot_data.db)
 		.await
@@ -71,8 +72,8 @@ pub async fn exec_force_name(ctx: &Context, command: &ApplicationCommandInteract
 pub async fn exec_unforce_name(ctx: &Context, command: &ApplicationCommandInteraction) -> Result<String, String> {
 	let bot_data = get_bot_data(&ctx).await;
 	let tgt_user_id = flatten_cmd_data_option(command, 0);
-	if command.guild_id.is_none() || *command.guild_id.as_ref().unwrap() != bot_data.guild_id {
-		return Err("Wrong server mate".into());
+	if command.guild_id.is_none() {
+		return Err("Not in a server".into());
 	}
 	if !command.member.as_ref().unwrap().permissions.unwrap().administrator() {
 		return Err("You're not an admin!".into());
@@ -81,8 +82,8 @@ pub async fn exec_unforce_name(ctx: &Context, command: &ApplicationCommandIntera
 	let tgt_user_id = tgt_user_id.ok_or("No user given!".to_string())?.as_str().unwrap();
 	let tgt_user_id: u64 = tgt_user_id.parse().unwrap();
 
-	sqlx::query("INSERT INTO users (user_id) VALUES ($1)
-			ON CONFLICT(user_id)
+	sqlx::query("INSERT INTO users (user_id, guild_id) VALUES ($1, $2)
+			ON CONFLICT ON CONSTRAINT users_pk
 			DO UPDATE SET forced_name = NULL")
 		.bind(tgt_user_id.to_string())
 		.execute(&bot_data.db)
@@ -102,8 +103,9 @@ pub async fn toi_tu_restes_comme_ca(
 	if new.guild_id != bot_data.guild_id {
 		return Ok(());
 	}
-	let user_db: Option<orm::User> = sqlx::query_as("SELECT * FROM users WHERE user_id = $1")
+	let user_db: Option<orm::User> = sqlx::query_as("SELECT * FROM users WHERE user_id = $1 AND guild_id = $2")
 		.bind(new.user.id.to_string())
+		.bind(new.guild_id.to_string())
 		.fetch_optional(&bot_data.db)
 		.await?;
 	if user_db.is_none() || user_db.as_ref().unwrap().forced_name.is_none() {
