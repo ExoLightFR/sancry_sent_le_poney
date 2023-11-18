@@ -50,7 +50,7 @@ pub async fn exec_force_name(ctx: &Context, command: &ApplicationCommandInteract
 
 	sqlx::query("INSERT INTO users (user_id, guild_id, forced_name) VALUES ($1, $2, $3)
 			ON CONFLICT ON CONSTRAINT users_pk
-			DO UPDATE SET forced_name = $2")
+			DO UPDATE SET forced_name = $3")
 		.bind(tgt_user_id)
 		.bind(command.guild_id.unwrap().to_string())
 		.bind(new_name)
@@ -82,7 +82,7 @@ pub async fn exec_unforce_name(ctx: &Context, command: &ApplicationCommandIntera
 	let tgt_user_id = tgt_user_id.ok_or("No user given!".to_string())?.as_str().unwrap();
 	let tgt_user_id: u64 = tgt_user_id.parse().unwrap();
 
-	sqlx::query("INSERT INTO users (user_id, guild_id) VALUES ($1, $2)
+	sqlx::query("INSERT INTO users (user_id, guild_id, forced_name) VALUES ($1, $2, NULL)
 			ON CONFLICT ON CONSTRAINT users_pk
 			DO UPDATE SET forced_name = NULL")
 		.bind(tgt_user_id.to_string())
